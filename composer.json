@@ -1,0 +1,17 @@
+{
+  "name": "casio-emea/module-withdrawal",
+  "description": "CasioEMEA specific Withdrawal customization",
+  "type": "magento2-module",
+  "license": "GPL-3.0",
+  "minimum-stability": "dev",
+  "version": "1.0.2",
+  "require": {},
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "CasioEMEA\\Withdrawal\\": ""
+    }
+  }
+}
