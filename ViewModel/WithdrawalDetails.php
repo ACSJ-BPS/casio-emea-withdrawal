@@ -97,4 +97,27 @@ class WithdrawalDetails implements ArgumentInterface
     {
         return $this->withdrawalHelper->getWithdrawalItemsAvailableQty($item);
     }
+
+    /**
+     * Get the URL for withdrawal submission for the given order
+     * The URL is generated based on the order ID and the route defined in the module
+     * @param Order $order
+     * @return string
+     */
+    public function getWithdrawalSubmissionUrl(Order $order): string
+    {
+        return $this->withdrawalHelper->getWithdrawalSubmissionUrl($order);
+    }
+
+    /**
+     * Check if no item in the order has been refunded
+     * An order is considered to have no refunded items if all items have their refunded quantity equal to zero
+     *
+     * @param Order $order
+     * @return bool
+     */
+    public function ifNoItemRefunded(Order $order): bool
+    {
+        return $this->withdrawalHelper->ifNoItemRefunded($order);
+    }
 }

@@ -110,6 +110,23 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     /**
+     * Check if no item in the order has been refunded
+     * An order is considered to have no refunded items if all items have their refunded quantity equal to zero
+     *
+     * @param Order $order
+     * @return bool
+     */
+    public function ifNoItemRefunded(Order $order): bool
+    {
+        foreach ($order->getItems() as $item) {
+            if ((int)$item->getQtyRefunded() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Check if the order is not shipped
      * An order is considered not shipped if all items have their shipped quantity equal to zero
      * @param Order $order
@@ -121,5 +138,42 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             return false;
         }
         return true;
+    }
+
+    /**
+     * Get withdrawal items for the order
+     * Only returns items that are fully invoiced but not fully shipped
+     *
+     * @param Order $order
+     * @return string
+     */
+    public function getWithdrawalSubmissionUrl(Order $order): string
+    {
+        return $this->_getUrl('withdrawal/customer/withdraw/', ['order_id' => $order->getId()]);
+    }
+    
+    /**
+     * Check if the order is fully shipped
+     * An order is considered fully shipped if all items have their ordered quantity equal to the shipped quantity
+     * @param Order $order
+     * @return bool
+     */
+    public function canCreateWithdrawalCreditMemo(Order $order): bool
+    {
+        if ($order->getStatus() === Order::STATE_PROCESSING && (int)$order->getData('order_sync_to_e1') === 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if the order can be withdrawn
+     * An order can be withdrawn if it can have a credit memo created for it
+     * @param Order $order
+     * @return bool
+     */
+    public function canWithdrawOrder(Order $order): bool
+    {
+        return $order->canCreditmemo();
     }
 }
