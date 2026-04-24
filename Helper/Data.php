@@ -149,7 +149,11 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getWithdrawalSubmissionUrl(Order $order): string
     {
-        return $this->_getUrl('withdrawal/customer/withdraw/', ['order_id' => $order->getId()]);
+        if ($this->customerSession->isLoggedIn()) {
+            return $this->_getUrl('withdrawal/customer/withdraw/', ['order_id' => $order->getId()]);
+        } else {
+            return $this->_getUrl('withdrawal/guest/withdraw/', ['order_id' => $order->getId()]);
+        }
     }
     
     /**
