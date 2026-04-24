@@ -64,6 +64,25 @@ class WithdrawalDetails implements ArgumentInterface
     }
 
     /**
+     * Get all items for the order
+     *
+     * @param Order $order
+     * @return array
+     */
+    public function getOrderItems(Order $order) :array
+    {
+        $orderItems = [];
+        foreach ($order->getItems() as $item) {
+            $orderItems[] = [
+                'name' => $item->getName(),
+                'sku' => $item->getSku(),
+                'ordered_qty' => (int)$item->getQtyOrdered()
+            ];
+        }
+        return $orderItems;
+    }
+
+    /**
      * Check if the order is fully shipped
      * An order is considered fully shipped if all items have their ordered quantity equal to the shipped quantity
      * @param Order $order

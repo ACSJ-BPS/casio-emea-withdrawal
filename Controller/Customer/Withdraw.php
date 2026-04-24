@@ -41,6 +41,7 @@ use Magento\Framework\Filter\FilterManager;
 use Casio\RmaAutomation\Helper\Config as RmaAutomationHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Customer\Model\Session as CustomerSession;
+use Magento\Framework\App\Response\RedirectInterface;
 use Throwable;
 use Exception;
 
@@ -95,6 +96,8 @@ class Withdraw extends Returns implements HttpPostActionInterface
      * @param FilterManager $filterManager
      * @param RmaAutomationHelper $rmaAutomationHelper
      * @param StoreManagerInterface $storeManager
+     * @param CustomerSession $customerSession
+     * @param RedirectInterface $redirect
      * @param Data|null $rmaHelper
      */
     public function __construct(
@@ -111,6 +114,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
         private readonly RmaAutomationHelper $rmaAutomationHelper,
         private readonly StoreManagerInterface $storeManager,
         private readonly CustomerSession $customerSession,
+        private readonly RedirectInterface $redirect,
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -230,12 +234,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                         $rmaObject->getIncrementId()
                     )
                 );
-
-                return $this->getResponse()->setRedirect(
-                    $this->redirect->success(
-                        $this->url->getUrl('rma/returns/history')
-                    )
-                );
+                return $this->resultRedirectFactory->create()->setPath('rma/returns/history');
             } catch (Throwable $e) {
                 $this->messageManager->addErrorMessage(
                     __('We can\'t create a return right now. Please try again later.')
