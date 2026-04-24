@@ -153,7 +153,7 @@ class Withdraw extends Action implements HttpPostActionInterface
 
         $order = $this->orderRepository->get($orderId);
 
-        if ($this->withdrawalHelper->canCreateWithdrawalCreditmemo($order)) {
+        if ($this->withdrawalHelper->orderNotSentToE1($order)) {
             try {
                 $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];

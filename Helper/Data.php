@@ -29,7 +29,9 @@ use Magento\Sales\Model\Order\Item;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
-    const XML_PATH_WITHDRAWAL_ENABLED = 'casio_withdrawal/configuration/enable';
+    public const XML_PATH_WITHDRAWAL_ENABLED = 'casio_withdrawal/configuration/enable';
+
+    public const WITHDRAWAL_STATUS = 'order_withdrawn';
 
     public function __construct(
         Context $context,
@@ -157,12 +159,12 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
     
     /**
-     * Check if the order is fully shipped
-     * An order is considered fully shipped if all items have their ordered quantity equal to the shipped quantity
+     * Check if the order has not been sent to E1
+     * An order is considered not sent to E1 if its status is processing and the sync flag is 0
      * @param Order $order
      * @return bool
      */
-    public function canCreateWithdrawalCreditMemo(Order $order): bool
+    public function orderNotSentToE1(Order $order): bool
     {
         if ($order->getStatus() === Order::STATE_PROCESSING && (int)$order->getData('order_sync_to_e1') === 0) {
             return true;

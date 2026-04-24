@@ -29,21 +29,23 @@ use Magento\Sales\Model\Order\Invoice;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\CreditmemoFactory;
 use Magento\Sales\Model\Service\CreditmemoService;
+use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 class CreateWithdrawalCreditmemoService
 {
     /**
-     * Constructor for the Submit controller
-     * @param Context $context
-     * @param ResultFactory $resultFactory
-     * @param CustomerSession $customerSession
-     * @param ScopeConfigInterface $scopeConfig
-     * @param OrderRepositoryInterface $orderRepository
+     * Constructor for the CreateWithdrawalCreditmemoService
+     * @param CreditmemoFactory $creditmemoFactory
+     * @param CreditmemoService $creditmemoService
      * @param WithdrawalHelper $withdrawalHelper
+     * @param OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         private readonly CreditmemoFactory $creditmemoFactory,
-        private readonly CreditmemoService $creditmemoService
+        private readonly CreditmemoService $creditmemoService,
+        private readonly WithdrawalHelper $withdrawalHelper,
+        private readonly OrderRepositoryInterface $orderRepository
     ) {
     }
 
@@ -72,7 +74,7 @@ class CreateWithdrawalCreditmemoService
 
         $qtys = [];
         $excludedItems = [];
-
+        $orderStatusTobeSet = $order->getStatus();
         if ($fullOrderWithdrawal) {
             foreach ($order->getAllItems() as $orderItem) {
                 if ($orderItem->isDummy()) {
@@ -96,6 +98,8 @@ class CreateWithdrawalCreditmemoService
                     $qtys[$orderItem->getId()] = $qtyToRefund;
                 }
             }
+            $orderStatusTobeSet = $this->withdrawalHelper::WITHDRAWAL_STATUS;
+            $orderComment = 'This Order was fully withdrawn by the customer.';
         } else {
             foreach ($withdrawalItems as $withdrawalItem) {
                 $itemId = $withdrawalItem['order_item_id'];
@@ -122,6 +126,7 @@ class CreateWithdrawalCreditmemoService
                     $qtys[$orderItem->getId()] = $qtyToRefund;
                 }
             }
+            $orderComment = 'This Order was partially withdrawn by the customer.';
         }
 
         if (empty($qtys)) {
@@ -144,6 +149,15 @@ class CreateWithdrawalCreditmemoService
 
         // false = online refund
         $this->creditmemoService->refund($creditmemo, false);
+
+        $order->setStatus($orderStatusTobeSet);
+        $order->addCommentToStatusHistory(
+            $orderComment,
+            $order->getStatus(),                            
+            true                                             
+        );
+
+        $this->orderRepository->save($order);
 
         return [
             'creditmemo' => $creditmemo,
