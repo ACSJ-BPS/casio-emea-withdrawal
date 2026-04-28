@@ -44,6 +44,8 @@ use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\App\Response\RedirectInterface;
 use Throwable;
 use Exception;
+use CasioEMEA\CabinetPiano\ViewModel\PianoDetails;
+use CasioEMEA\Withdrawal\Model\Email\PianoWithdrawalEmailSender;
 
 /**
  * Controller class Withdraw. Contains logic of request, responsible for withdrawal creation
@@ -98,6 +100,8 @@ class Withdraw extends Returns implements HttpPostActionInterface
      * @param StoreManagerInterface $storeManager
      * @param CustomerSession $customerSession
      * @param RedirectInterface $redirect
+     * @param PianoDetails $pianoViewModel
+     * @param PianoWithdrawalEmailSender $pianoWithdrawalEmailSender
      * @param Data|null $rmaHelper
      */
     public function __construct(
@@ -115,6 +119,8 @@ class Withdraw extends Returns implements HttpPostActionInterface
         private readonly StoreManagerInterface $storeManager,
         private readonly CustomerSession $customerSession,
         private readonly RedirectInterface $redirect,
+        private readonly PianoDetails $pianoViewModel,
+        private readonly PianoWithdrawalEmailSender $pianoWithdrawalEmailSender,
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -142,6 +148,34 @@ class Withdraw extends Returns implements HttpPostActionInterface
         $post = $this->getRequest()->getPostValue();
 
         $order = $this->orderRepository->get($orderId);
+        $isPianoOrder = $this->pianoViewModel->isPianoOrder($order);
+        if ($isPianoOrder) {
+            try {
+                $order->setStatus(WithdrawalHelper::PIANO_ORDER_STATUS);
+                $order->addCommentToStatusHistory(
+                    __('Withdrawal request submitted by customer')->render(),
+                    WithdrawalHelper::PIANO_ORDER_STATUS,
+                    false
+                );
+                $this->orderRepository->save($order);
+
+                $this->pianoWithdrawalEmailSender->send($order);
+                $this->messageManager->addSuccessMessage(
+                    __(
+                        'Your withdrawal request for order #%1 has been submitted.',
+                        $order->getIncrementId()
+                    )
+                );
+            } catch (\Throwable $e) {
+                $this->logger->critical(
+                    'Error saving withdrawal request for order #%1: ' . $e->getMessage(),
+                    ['order_id' => $orderId]
+                );
+            }
+
+            $this->_redirect('sales/order/view', ['order_id' => $orderId]);
+            return;
+        }
 
         if ($this->withdrawalHelper->orderNotSentToE1($order)) {
             try {
