@@ -23,37 +23,35 @@ declare(strict_types=1);
 
 namespace CasioEMEA\Withdrawal\Service;
 
-use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Model\Order;
-use Magento\Sales\Model\Order\Invoice;
-use Magento\Sales\Model\Order\Creditmemo;
-use Magento\Sales\Model\Order\CreditmemoFactory;
-use Magento\Sales\Model\Service\CreditmemoService;
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\OrderItemRepositoryInterface;
+use Magento\Sales\Model\ResourceModel\Order\Item;
+use Magento\Sales\Model\ResourceModel\Order\ItemFactory as OrderItemResourceFactory; 
 
-class CreateWithdrawalCreditmemoService
+class SetWithdrawalFlagForOrdersSentToE1NotShippedService
 {
     /**
-     * Constructor for the CreateWithdrawalCreditmemoService
-     * @param CreditmemoFactory $creditmemoFactory
-     * @param CreditmemoService $creditmemoService
+     * Constructor for SetWithdrawalFlagForOrdersSentToE1NotShippedService
+     *
      * @param WithdrawalHelper $withdrawalHelper
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderItemRepositoryInterface $orderItemRepository
+     * @param OrderItemResourceFactory $orderItemResourceFactory
      */
     public function __construct(
-        private readonly CreditmemoFactory $creditmemoFactory,
-        private readonly CreditmemoService $creditmemoService,
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly OrderRepositoryInterface $orderRepository,
-        private readonly OrderItemRepositoryInterface $orderItemRepository
+        private readonly OrderItemRepositoryInterface $orderItemRepository,
+        private readonly OrderItemResourceFactory $orderItemResourceFactory
     ) {
     }
 
     /**
-     * Creates a credit memo for the given order and invoice based on the withdrawal items
+     * Executes the service to set withdrawal flags for orders that are sent to E1 but not shipped
+     *
      * @param Order $order
      * @param bool $fullOrderWithdrawal
      * @param array $withdrawalItems
@@ -63,22 +61,7 @@ class CreateWithdrawalCreditmemoService
      */
     public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0"): array
     {
-        if (!$order->canCreditmemo()) {
-            throw new \Magento\Framework\Exception\LocalizedException(
-                __('A credit memo cannot be created for this order #%1.', $order->getIncrementId())
-            );
-        }
-
-        $invoice = $this->getRefundableInvoice($order);
-        if (!$invoice) {
-            throw new \Magento\Framework\Exception\LocalizedException(
-                __('No refundable invoice found. Online refund requires a refundable invoice.')
-            );
-        }
-
-        $qtys = [];
         $excludedItems = [];
-        $orderStatusTobeSet = $order->getStatus();
         if ($fullOrderWithdrawal) {
             foreach ($order->getAllItems() as $orderItem) {
                 if ($orderItem->isDummy()) {
@@ -101,23 +84,18 @@ class CreateWithdrawalCreditmemoService
                 if ($qtyToRefund > 0) {
                     $qtys[$orderItem->getId()] = $qtyToRefund;
                 }
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$fullWithdrawalReason);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$orderItem->getQtyOrdered());
-                $this->orderItemRepository->save($orderItem);
+                $this->updateOrderItem((int)$orderItem->getId(), WithdrawalHelper::ITEM_WITHDRAWN_BEFORE_SHIPMENT, (int)$orderItem->getQtyOrdered(), (int)$fullWithdrawalReason);
             }
-            $orderStatusTobeSet = $this->withdrawalHelper::WITHDRAWAL_STATUS;
+            $orderStatusTobeSet = $order->getStatus();
             $fullWithdrawalReasonText = $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
-            $orderComment = 'This Order was fully withdrawn by the customer.' . $fullWithdrawalReasonText . '.';
-            $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
-            
+            $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText.'. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
+            $withdrawnStatus = WithdrawalHelper::ORDER_WITHDRAWN_BEFORE_SHIPMENT;
         } else {
             $totalQtyOrdered = 0;
             $isOrderFullyWithdrawn = true;
             foreach ($withdrawalItems as $withdrawalItem) {
-                $itemId = $withdrawalItem['order_item_id'];
+                $orderItem = $this->orderItemRepository->get($withdrawalItem['order_item_id']);
                 $qty = $withdrawalItem['qty_requested'];
-                $orderItem = $order->getItemById((int)$itemId);
                 if (!$orderItem || $orderItem->isDummy()) {
                     continue;
                 }
@@ -140,69 +118,58 @@ class CreateWithdrawalCreditmemoService
                 if ($qtyToRefund > 0) {
                     $qtys[$orderItem->getId()] = $qtyToRefund;
                 }
-
                 $totalQtyWithdrawnForItem = (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$qtyToRefund;
-
-                if ($orderItem->getQtyOrdered() === $orderItem->getQtyRefunded() + $qtyToRefund) {
-                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                
+                if ((int)$orderItem->getQtyOrdered() === $totalQtyWithdrawnForItem) {
+                    $itemWithdrawanStatus = WithdrawalHelper::ITEM_WITHDRAWN_BEFORE_SHIPMENT;
                 } else {
-                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
+                    $itemWithdrawanStatus = WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN_BEFORE_SHIPMENT;
                     $isOrderFullyWithdrawn = false;
                 }
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
-                $this->orderItemRepository->save($orderItem);
+
+                $this->updateOrderItem((int)$orderItem->getId(), $itemWithdrawanStatus, $totalQtyWithdrawnForItem, (int)$withdrawalItem['reason']);
             }
-            $orderComment = 'This Order was partially withdrawn by the customer.';
-            $withdrawnStatus = $fullOrderWithdrawal ? WithdrawalHelper::ORDER_FULLY_WITHDRAWN : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN;
+            $orderStatusTobeSet = $order->getStatus();
+            $orderComment = 'This Order was partially withdrawn by the customer. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shiiped.';
+            $withdrawnStatus = $isOrderFullyWithdrawn ? WithdrawalHelper::ORDER_WITHDRAWN_BEFORE_SHIPMENT : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN_BEFORE_SHIPMENT;
         }
-
-        if (empty($qtys)) {
-            throw new \Magento\Framework\Exception\LocalizedException(
-                __('No refundable unshipped items found for this order.')
-            );
-        }
-
-        $creditmemo = $this->creditmemoFactory->createByInvoice($invoice, ['qtys' => $qtys]);
-
-        if (!$creditmemo || !$creditmemo->getTotalQty()) {
-            throw new \Magento\Framework\Exception\LocalizedException(
-                __('Unable to create credit memo.')
-            );
-        }
-
-        $creditmemo->setInvoice($invoice);
-        $creditmemo->setAutomaticallyCreated(true);
-        $creditmemo->addComment(__('Credit memo created as part of the customer withdrawal process.'), false, false);
-
-        // false = online refund
-        $this->creditmemoService->refund($creditmemo, false);
 
         $order->setStatus($orderStatusTobeSet);
         $order->setData('withdrawal_order_status', $withdrawnStatus);
         $order->addCommentToStatusHistory(
             $orderComment,
-            $order->getStatus(),                            
-            true                                             
+            $order->getStatus()                               
         );
 
         $this->orderRepository->save($order);
 
         return [
-            'creditmemo' => $creditmemo,
             'excluded_items' => $excludedItems
         ];
     }
 
-    private function getRefundableInvoice(\Magento\Sales\Model\Order $order): ?\Magento\Sales\Model\Order\Invoice
+    /**
+     * Update the order item with the withdrawal status and quantity
+     * @param int $itemId
+     * @param int $withdrawnStatus
+     * @param int $withdrawnQty
+     * @return void
+     */
+    private function updateOrderItem(int $itemId, int $withdrawnStatus, int $withdrawnQty, int $reason): void
     {
-        foreach ($order->getInvoiceCollection() as $invoice) {
-            if ($invoice->canRefund()) {
-                return $invoice;
-            }
-        }
+        $connection = $this->orderItemResourceFactory->create()->getConnection();
+        $tableName = $connection->getTableName('sales_order_item');
 
-        return null;
+        $dataToUpdate = [
+            'withdrawal_item_status' => $withdrawnStatus,
+            'withdrawal_qty' => $withdrawnQty,
+            'withdrawal_item_reason' => $reason
+        ];
+
+        $whereCondition = [
+            'item_id = ?' => $itemId
+        ];
+
+        $connection->update($tableName, $dataToUpdate, $whereCondition);
     }
 }
-    

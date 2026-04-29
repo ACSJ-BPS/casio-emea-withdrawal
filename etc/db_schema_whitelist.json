@@ -1,0 +1,14 @@
+{
+    "sales_order": {
+        "column": {
+            "withdrawal_order_status": true
+        }
+    },
+    "sales_order_item": {
+        "column": {
+            "withdrawal_item_status": true,
+            "withdrawal_qty": true,
+            "withdrawal_item_reason": true
+        }
+    }
+}

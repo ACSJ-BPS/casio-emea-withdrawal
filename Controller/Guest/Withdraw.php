@@ -153,6 +153,7 @@ class Withdraw extends Action implements HttpPostActionInterface
 
         $order = $this->orderRepository->get($orderId);
 
+        // If order is not sent to E1, we can directly create credit memo without creating RMA
         if ($this->withdrawalHelper->orderNotSentToE1($order)) {
             try {
                 $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
@@ -167,6 +168,26 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $this->_redirect('sales/guest/view');
                 return;
             }
+        }
+
+        // If order is sent to E1 but not shipped, we will set withdrawal flags without creating RMA and credit memo, and the merchant will process the withdrawal in E1 based on the flags. The RMA will be created after the order is shipped.
+        if ($this->withdrawalHelper->orderSentToE1NotShipped($order)) {
+            try {
+                $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
+                $withdrawalItems = isset($post['items']) ? $post['items'] : [];
+                $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems);
+                $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
+                $this->_redirect('sales/order/history');
+                return;
+            } catch (\Exception $e) {
+                $this->logger->critical('Error setting withdrawal flag for order sent to E1 but not shipped: ' . $e->getMessage());
+                $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+                $this->_redirect('sales/order/history');
+                return;
+            }
+            $this->messageManager->addErrorMessage(__('Withdrawal request cannot be created for order #%1 because it has not been fully invoiced yet.', $order->getIncrementId()));
+            $this->_redirect('sales/order/history');
+            return;
         }
 
         if (!$this->rmaHelper->canCreateRma($orderId)) {
@@ -184,7 +205,7 @@ class Withdraw extends Action implements HttpPostActionInterface
                         'order_item_id'      => $orderItem->getId(),
                         'qty_requested'      => (string)$orderItem->getQtyToRefund(),
                         'condition'  => "0",
-                        'reason'  => "0"
+                        'reason'  => $post["withdrawal_reason_full_order"] ?? "0"
                     ];
                 }
                 $post['items'] = $itemsToReturn;

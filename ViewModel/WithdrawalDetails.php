@@ -139,4 +139,15 @@ class WithdrawalDetails implements ArgumentInterface
     {
         return $this->withdrawalHelper->ifNoItemRefunded($order);
     }
+
+    /**
+     * Get RMA reason options for the withdrawal form
+     * The options are retrieved from the RmaReasonList class which gets them from the E
+     * AV attribute options for the 'reason' attribute of RMA entities
+     * @return array
+     */
+    public function getRmaReasonOptions(): array
+    {
+        return $this->withdrawalHelper->getRmaReasonOptions();  
+    }
 }

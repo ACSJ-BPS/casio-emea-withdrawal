@@ -26,6 +26,7 @@ use Magento\Framework\App\Helper\Context;
 use Magento\Customer\Model\Session as CustomerSession;
 use  Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Item;
+use CasioEMEA\E1Integration\Model\Config\Source\RmaReasonList;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
@@ -33,9 +34,62 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
 
     public const WITHDRAWAL_STATUS = 'order_withdrawn';
 
+    public const WITHDRAWAL_ORDER_KEY = 'withdrawal_order_status';
+
+    public const WITHDRAWAL_ITEM_KEY = 'withdrawal_item_status';
+
+    public const WITHDRAWAL_ITEM_REASON_KEY = 'withdrawal_item_reason';
+
+    public const WITHDRAWAL_QTY_KEY = 'withdrawal_qty';
+
+    public const ORDER_NOT_WITHDRAWN = 0;
+
+    public const ORDER_FULLY_WITHDRAWN = 1;
+
+    public const ORDER_PARTIALLY_WITHDRAWN = 2;
+
+    public const ORDER_WITHDRAWN_BEFORE_SHIPMENT = 3;
+    
+    public const ORDER_PARTIALLY_WITHDRAWN_BEFORE_SHIPMENT = 4;
+
+    public const ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED = 5;
+
+    public const ORDER_PARTIALLY_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED = 6;
+
+    public const ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED = 7;
+
+    public const ORDER_PARTIALLY_WITHDRAWN_AFTER_SHIPMENT_DELIVERED = 8;
+
+    public const ITEM_NOT_WITHDRAWN = 0;
+
+    public const ITEM_FULLY_WITHDRAWN = 1;
+
+    public const ITEM_PARTIALLY_WITHDRAWN = 2;
+
+    public const ITEM_WITHDRAWN_BEFORE_SHIPMENT = 3;
+    
+    public const ITEM_PARTIALLY_WITHDRAWN_BEFORE_SHIPMENT = 4;
+
+    public const ITEM_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED = 5;
+
+    public const ITEM_PARTIALLY_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED = 6;
+
+    public const ITEM_WITHDRAWN_AFTER_SHIPMENT_DELIVERED = 7;
+
+    public const ITEM_PARTIALLY_WITHDRAWN_AFTER_SHIPMENT_DELIVERED = 8;
+
+     /**
+     * Constructor for the Data helper
+     *
+     * @param Context $context
+     * @param CustomerSession $customerSession
+     * @param RmaReasonList $rmaReasonList
+     */
+
     public function __construct(
         Context $context,
-        private readonly CustomerSession $customerSession
+        private readonly CustomerSession $customerSession,
+        private readonly RmaReasonList $rmaReasonList
     ) {
         parent::__construct($context);
     }
@@ -89,8 +143,9 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function getWithdrawalItemsAvailableQty(Item $item): int
     {
         $availableQty = 0;
-        if ((int)$item->getQtyInvoiced() === (int)$item->getQtyOrdered() && (int)$item->getQtyShipped() === 0) {
-            $availableQty = (int)$item->getQtyInvoiced() - (int)$item->getQtyRefunded();
+        if (((int)$item->getData(self::WITHDRAWAL_ITEM_KEY) !== self::ITEM_WITHDRAWN_BEFORE_SHIPMENT)
+            && ((int)$item->getData(self::WITHDRAWAL_ITEM_KEY) !== self::ITEM_FULLY_WITHDRAWN)) {
+            $availableQty = $item->getQtyOrdered() - $item->getData(self::WITHDRAWAL_QTY_KEY);
         }
         return $availableQty;
     }
@@ -121,7 +176,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function ifNoItemRefunded(Order $order): bool
     {
         foreach ($order->getItems() as $item) {
-            if ((int)$item->getQtyRefunded() > 0) {
+            if ((int)$item->getData(self::WITHDRAWAL_ITEM_KEY) !== 0) {
                 return false;
             }
         }
@@ -173,6 +228,25 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     /**
+     * Check if the order has been sent to E1 but not shipped
+     * An order is considered sent to E1 but not shipped if its sync flag is 1 and all items have their shipped quantity equal to zero
+     * @param Order $order
+     * @return bool
+     */
+    public function orderSentToE1NotShipped(Order $order): bool
+    {
+        if ((int)$order->getData('order_sync_to_e1') === 1) {
+            foreach ($order->getItems() as $item) {
+                if ((int)$item->getQtyShipped() > 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Check if the order can be withdrawn
      * An order can be withdrawn if it can have a credit memo created for it
      * @param Order $order
@@ -180,6 +254,38 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function canWithdrawOrder(Order $order): bool
     {
-        return $order->canCreditmemo();
+        return !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) 
+        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED)
+        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED)
+        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT);
+    }
+
+    /**
+     * Get RMA reason options for the withdrawal form
+     * The options are retrieved from the RmaReasonList class which gets them from the E
+     * AV attribute options for the 'reason' attribute of RMA entities
+     * @return array
+     */
+    public function getRmaReasonOptions(): array
+    {
+        return $this->rmaReasonList->toOptionArray();
+    }
+
+    /**
+     * Get RMA reason text by value
+     * The text is retrieved from the RmaReasonList class by matching
+     * the given value with the options' values and returning the corresponding label
+     * @param string $value
+     * @return string
+     */
+    public function getRmaReasonTextByValue(string $value): string
+    {
+        $options = $this->rmaReasonList->toOptionArray();
+        foreach ($options as $option) {
+            if ($option['value'] === (int)$value) {
+                return $option['label'];
+            }
+        }
+        return '';
     }
 }
