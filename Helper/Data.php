@@ -27,10 +27,15 @@ use Magento\Customer\Model\Session as CustomerSession;
 use  Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Item;
 use CasioEMEA\E1Integration\Model\Config\Source\RmaReasonList;
+use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
     public const XML_PATH_WITHDRAWAL_ENABLED = 'casio_withdrawal/configuration/enable';
+
+    public const XML_PATH_WITHDRAWAL_INTERVAL = 'casio_withdrawal/configuration/interval'; 
+
+    public const DEFAULT_INTERVAL = 45;
 
     public const WITHDRAWAL_STATUS = 'order_withdrawn';
 
@@ -78,18 +83,26 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
 
     public const ITEM_PARTIALLY_WITHDRAWN_AFTER_SHIPMENT_DELIVERED = 8;
 
+    public const WITHDRAWAL_FLAG = 'withdrawal_flag';
+
+    public const CREATE_RETURN = 1;
+
+    public const RETURN_CREATED = 2;
+
      /**
      * Constructor for the Data helper
      *
      * @param Context $context
      * @param CustomerSession $customerSession
      * @param RmaReasonList $rmaReasonList
+     * @param TimezoneInterface $timezone
      */
 
     public function __construct(
         Context $context,
         private readonly CustomerSession $customerSession,
-        private readonly RmaReasonList $rmaReasonList
+        private readonly RmaReasonList $rmaReasonList,
+        private readonly TimezoneInterface $timezone
     ) {
         parent::__construct($context);
     }
@@ -233,14 +246,9 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * @param Order $order
      * @return bool
      */
-    public function orderSentToE1NotShipped(Order $order): bool
+    public function orderSentToE1(Order $order): bool
     {
         if ((int)$order->getData('order_sync_to_e1') === 1) {
-            foreach ($order->getItems() as $item) {
-                if ((int)$item->getQtyShipped() > 0) {
-                    return false;
-                }
-            }
             return true;
         }
         return false;
@@ -257,7 +265,33 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         return !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) 
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED)
-        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT);
+        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT)
+        && $this->isWithinReturnWindow($order);
+    }
+
+    /**
+     * Check if the order was placed within the return window
+     *
+     * @param  \Magento\Sales\Model\Order $order
+     * @return bool
+     */
+    private function isWithinReturnWindow(\Magento\Sales\Model\Order $order): bool
+    {
+        $allowedDays = (int) $this->scopeConfig->getValue(
+            self::XML_PATH_WITHDRAWAL_INTERVAL,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $order->getStoreId()
+        ) ?: self::DEFAULT_INTERVAL;
+
+        // Convert order created_at to store timezone
+        $orderDate   = $this->timezone->date(new \DateTime($order->getCreatedAt()));
+
+        // Get current date in store timezone
+        $currentDate = $this->timezone->date();
+
+        $daysDiff = (int) $currentDate->diff($orderDate)->days;
+
+        return $daysDiff < $allowedDays;
     }
 
     /**

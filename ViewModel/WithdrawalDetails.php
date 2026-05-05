@@ -47,9 +47,10 @@ class WithdrawalDetails implements ArgumentInterface
      * Only returns items that are fully invoiced but not fully shipped
      *
      * @param Order $order
+     * @param array $shippedItems
      * @return array
      */
-    public function getWithdrawalItems(Order $order): array
+    public function getWithdrawalItems(Order $order, array $shippedItems = []): array
     {
         $invoicedItems = [];
         
@@ -57,6 +58,11 @@ class WithdrawalDetails implements ArgumentInterface
             // Check if item is invoiced
             if ((int)$item->getQtyInvoiced() ===  (int)$item->getQtyOrdered() && (int)$item->getQtyShipped() === 0) {
                 $invoicedItems[] = $item;
+            }
+        }
+        if (!empty($shippedItems)) {
+            foreach ($shippedItems as $shippedItem) {
+                $invoicedItems[] = $shippedItem;
             }
         }
         

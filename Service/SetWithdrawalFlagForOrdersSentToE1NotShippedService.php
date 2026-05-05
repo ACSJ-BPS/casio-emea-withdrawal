@@ -29,7 +29,6 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\OrderItemRepositoryInterface;
 use Magento\Sales\Model\ResourceModel\Order\Item;
-use Magento\Sales\Model\ResourceModel\Order\ItemFactory as OrderItemResourceFactory; 
 
 class SetWithdrawalFlagForOrdersSentToE1NotShippedService
 {
@@ -39,13 +38,11 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
      * @param WithdrawalHelper $withdrawalHelper
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderItemRepositoryInterface $orderItemRepository
-     * @param OrderItemResourceFactory $orderItemResourceFactory
      */
     public function __construct(
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly OrderRepositoryInterface $orderRepository,
-        private readonly OrderItemRepositoryInterface $orderItemRepository,
-        private readonly OrderItemResourceFactory $orderItemResourceFactory
+        private readonly OrderItemRepositoryInterface $orderItemRepository
     ) {
     }
 
@@ -62,6 +59,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
     public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0"): array
     {
         $excludedItems = [];
+        $itemsToSave = [];
         if ($fullOrderWithdrawal) {
             foreach ($order->getAllItems() as $orderItem) {
                 if ($orderItem->isDummy()) {
@@ -69,14 +67,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 }
 
                 if ((float)$orderItem->getQtyShipped() > 0) {
-                    $excludedItems[] = [
-                        'item_id'      => $orderItem->getId(),
-                        'sku'          => $orderItem->getSku(),
-                        'name'         => $orderItem->getName(),
-                        'qty_ordered'  => (float)$orderItem->getQtyOrdered(),
-                        'qty_shipped'  => (float)$orderItem->getQtyShipped(),
-                        'qty_refunded' => (float)$orderItem->getQtyRefunded(),
-                    ];
+                    $excludedItems[] = $orderItem;
                     continue;
                 }
 
@@ -84,12 +75,15 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 if ($qtyToRefund > 0) {
                     $qtys[$orderItem->getId()] = $qtyToRefund;
                 }
-                $this->updateOrderItem((int)$orderItem->getId(), WithdrawalHelper::ITEM_WITHDRAWN_BEFORE_SHIPMENT, (int)$orderItem->getQtyOrdered(), (int)$fullWithdrawalReason);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_WITHDRAWN_BEFORE_SHIPMENT);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$orderItem->getQtyOrdered());
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$fullWithdrawalReason);
+                $itemsToSave[] = $orderItem;
             }
             $orderStatusTobeSet = $order->getStatus();
             $fullWithdrawalReasonText = $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
             $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText.'. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
-            $withdrawnStatus = WithdrawalHelper::ORDER_WITHDRAWN_BEFORE_SHIPMENT;
+            $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
         } else {
             $totalQtyOrdered = 0;
             $isOrderFullyWithdrawn = true;
@@ -103,14 +97,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 $totalQtyOrdered += (int)$orderItem->getQtyOrdered();
 
                 if ((float)$orderItem->getQtyShipped() > 0) {
-                    $excludedItems[] = [
-                        'item_id'      => $orderItem->getId(),
-                        'sku'          => $orderItem->getSku(),
-                        'name'         => $orderItem->getName(),
-                        'qty_ordered'  => (float)$orderItem->getQtyOrdered(),
-                        'qty_shipped'  => (float)$orderItem->getQtyShipped(),
-                        'qty_refunded' => (float)$orderItem->getQtyRefunded(),
-                    ];
+                    $excludedItems[] = $withdrawalItem;
                     continue;
                 }
 
@@ -127,49 +114,27 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                     $isOrderFullyWithdrawn = false;
                 }
 
-                $this->updateOrderItem((int)$orderItem->getId(), $itemWithdrawanStatus, $totalQtyWithdrawnForItem, (int)$withdrawalItem['reason']);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, $itemWithdrawanStatus);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
+
+                $itemsToSave[] = $orderItem;
             }
             $orderStatusTobeSet = $order->getStatus();
             $orderComment = 'This Order was partially withdrawn by the customer. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shiiped.';
-            $withdrawnStatus = $isOrderFullyWithdrawn ? WithdrawalHelper::ORDER_WITHDRAWN_BEFORE_SHIPMENT : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN_BEFORE_SHIPMENT;
+            $withdrawnStatus = $isOrderFullyWithdrawn ? WithdrawalHelper::ORDER_FULLY_WITHDRAWN : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN;
         }
 
         $order->setStatus($orderStatusTobeSet);
-        $order->setData('withdrawal_order_status', $withdrawnStatus);
+        $order->setData(WithdrawalHelper::WITHDRAWAL_ORDER_KEY, $withdrawnStatus);
         $order->addCommentToStatusHistory(
             $orderComment,
             $order->getStatus()                               
         );
 
+        $order->setItems($itemsToSave);
         $this->orderRepository->save($order);
 
-        return [
-            'excluded_items' => $excludedItems
-        ];
-    }
-
-    /**
-     * Update the order item with the withdrawal status and quantity
-     * @param int $itemId
-     * @param int $withdrawnStatus
-     * @param int $withdrawnQty
-     * @return void
-     */
-    private function updateOrderItem(int $itemId, int $withdrawnStatus, int $withdrawnQty, int $reason): void
-    {
-        $connection = $this->orderItemResourceFactory->create()->getConnection();
-        $tableName = $connection->getTableName('sales_order_item');
-
-        $dataToUpdate = [
-            'withdrawal_item_status' => $withdrawnStatus,
-            'withdrawal_qty' => $withdrawnQty,
-            'withdrawal_item_reason' => $reason
-        ];
-
-        $whereCondition = [
-            'item_id = ?' => $itemId
-        ];
-
-        $connection->update($tableName, $dataToUpdate, $whereCondition);
+        return $excludedItems;
     }
 }

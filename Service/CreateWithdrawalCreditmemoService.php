@@ -194,6 +194,12 @@ class CreateWithdrawalCreditmemoService
         ];
     }
 
+    /**
+     * Return refundable invoice
+     * 
+     * @param \Magento\Sales\Model\Order $order
+     * @return \Magento\Sales\Model\Order\Invoice|null
+     */
     private function getRefundableInvoice(\Magento\Sales\Model\Order $order): ?\Magento\Sales\Model\Order\Invoice
     {
         foreach ($order->getInvoiceCollection() as $invoice) {
