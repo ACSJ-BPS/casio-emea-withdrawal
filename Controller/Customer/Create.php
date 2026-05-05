@@ -31,7 +31,6 @@ use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Rma\Controller\Returns as RmaReturns;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Framework\Registry as CoreRegistry;
-use CasioEMEA\Withdrawal\Cron\CreateReturnForWithdrawnOrderAfterShipment;
 
 class Create extends RmaReturns implements HttpGetActionInterface
 {
@@ -50,8 +49,7 @@ class Create extends RmaReturns implements HttpGetActionInterface
         CoreRegistry $coreRegistry,
         private readonly CustomerSession $customerSession,
         private readonly ScopeConfigInterface $scopeConfig,
-        private readonly OrderRepositoryInterface $orderRepository,
-        private readonly CreateReturnForWithdrawnOrderAfterShipment $createReturn
+        private readonly OrderRepositoryInterface $orderRepository
     ) {
         parent::__construct($context, $coreRegistry);
     }
