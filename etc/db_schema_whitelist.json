@@ -10,5 +10,10 @@
             "withdrawal_qty": true,
             "withdrawal_item_reason": true
         }
+    },
+    "sales_shipment": {
+        "column": {
+            "withdrawal_flag": true
+        }
     }
 }
