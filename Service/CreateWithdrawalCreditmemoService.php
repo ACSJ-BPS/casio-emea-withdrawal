@@ -114,7 +114,22 @@ class CreateWithdrawalCreditmemoService
         } else {
             $totalQtyOrdered = 0;
             $isOrderFullyWithdrawn = true;
+            $simplefields = [
+                'order_item_id',
+                'qty_requested',
+                'condition',
+                'reason'
+            ];
             foreach ($withdrawalItems as $withdrawalItem) {
+                foreach ($simplefields as $simplefield) {
+                    $paramValue = $withdrawalItem[$simplefield];
+                    if (!empty($paramValue)) {
+                        $filteredSimValue = $this->filterManager->stripTags($paramValue);
+                        if ($paramValue !== $filteredSimValue) {
+                            $error = __('HTML tags are not allowed.');
+                        }
+                    }
+                }
                 $itemId = $withdrawalItem['order_item_id'];
                 $qty = $withdrawalItem['qty_requested'];
                 $orderItem = $order->getItemById((int)$itemId);

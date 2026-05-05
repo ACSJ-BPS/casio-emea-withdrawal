@@ -32,11 +32,25 @@ use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
     public const XML_PATH_WITHDRAWAL_ENABLED = 'casio_withdrawal/configuration/enable';
+
     public const XML_PATH_PIANO_EMAIL_ENABLED = 'casio_withdrawal/piano_email/enable';
     public const XML_PATH_PIANO_EMAIL_SENDER = 'casio_withdrawal/piano_email/email_sender';
     public const XML_PATH_PIANO_EMAIL_TEMPLATE = 'casio_withdrawal/piano_email/email_template';
     public const XML_PATH_PIANO_EMAIL_COPY_TO = 'casio_withdrawal/piano_email/send_email_copyto';
     public const XML_PATH_PIANO_EMAIL_COPY_METHOD = 'casio_withdrawal/piano_email/send_email_copy_method';
+
+    public const XML_PATH_SUBMISSION_EMAIL_ENABLED = 'casio_withdrawal/submission_email/enable';
+    public const XML_PATH_SUBMISSION_EMAIL_SENDER = 'casio_withdrawal/submission_email/email_sender';
+    public const XML_PATH_SUBMISSION_EMAIL_TEMPLATE = 'casio_withdrawal/submission_email/email_template';
+    public const XML_PATH_SUBMISSION_EMAIL_COPY_TO = 'casio_withdrawal/submission_email/send_email_copyto';
+    public const XML_PATH_SUBMISSION_EMAIL_COPY_METHOD = 'casio_withdrawal/submission_email/send_email_copy_method';
+
+    public const XML_PATH_CONFIRMATION_EMAIL_ENABLED = 'casio_withdrawal/confirmation_email/enable';
+    public const XML_PATH_CONFIRMATION_EMAIL_SENDER = 'casio_withdrawal/confirmation_email/email_sender';
+    public const XML_PATH_CONFIRMATION_EMAIL_TEMPLATE = 'casio_withdrawal/confirmation_email/email_template';
+    public const XML_PATH_CONFIRMATION_EMAIL_COPY_TO = 'casio_withdrawal/confirmation_email/send_email_copyto';
+    public const XML_PATH_CONFIRMATION_EMAIL_COPY_METHOD = 'casio_withdrawal/confirmation_email/send_email_copy_method';
+    
 
     public const XML_PATH_WITHDRAWAL_INTERVAL = 'casio_withdrawal/configuration/interval'; 
 
@@ -94,6 +108,12 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public const CREATE_RETURN = 1;
 
     public const RETURN_CREATED = 2;
+
+    // If order is not yet sent to E1
+    public const SCENARIO_NOT_SENT_TO_E1 = 1;
+
+    // If order is sent to E1
+    public const SCENARIO_SENT_TO_E1 = 2;
 
      /**
      * Constructor for the Data helper

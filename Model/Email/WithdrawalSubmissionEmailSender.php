@@ -32,13 +32,13 @@ use Magento\Store\Model\ScopeInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Sends the "Withdrawal submission emails piano" transactional email to the customer
+ * Sends the "Withdrawal submission emails" transactional email to the customer
  * when a piano order withdrawal is submitted.
  */
-class PianoWithdrawalEmailSender
+class WithdrawalSubmissionEmailSender
 {
     /**
-     * Undocumented function
+     * Constructor
      *
      * @param TransportBuilder $transportBuilder
      * @param StateInterface $inlineTranslation
@@ -76,7 +76,7 @@ class PianoWithdrawalEmailSender
         }
 
         $template = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_TEMPLATE,
+            WithdrawalHelper::XML_PATH_SUBMISSION_EMAIL_TEMPLATE,
             $storeId
         );
         if (empty($template)) {
@@ -86,7 +86,7 @@ class PianoWithdrawalEmailSender
         $senderInfo = $this->getSenderInfo($storeId);
         $copyTo = $this->getCopyToList($storeId);
         $copyMethod = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_COPY_METHOD,
+            WithdrawalHelper::XML_PATH_SUBMISSION_EMAIL_COPY_METHOD,
             $storeId
         );
 
@@ -138,7 +138,7 @@ class PianoWithdrawalEmailSender
             }
         } catch (\Throwable $e) {
             $this->logger->error(
-                'Failed to send piano withdrawal submission email: ' . $e->getMessage(),
+                'Failed to send order withdrawal confirmation email: ' . $e->getMessage(),
                 ['order_id' => $order->getIncrementId()]
             );
             return false;
@@ -158,7 +158,7 @@ class PianoWithdrawalEmailSender
     private function getSenderInfo(int $storeId): array
     {
         $sender = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_SENDER,
+            WithdrawalHelper::XML_PATH_SUBMISSION_EMAIL_SENDER,
             $storeId
         ) ?: 'support';
 
@@ -185,7 +185,7 @@ class PianoWithdrawalEmailSender
     private function getCopyToList(int $storeId): array
     {
         $raw = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_COPY_TO,
+            WithdrawalHelper::XML_PATH_SUBMISSION_EMAIL_COPY_TO,
             $storeId
         );
         if (empty($raw)) {

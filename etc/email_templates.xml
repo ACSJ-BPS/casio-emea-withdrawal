@@ -25,4 +25,16 @@
               type="html"
               module="CasioEMEA_Withdrawal"
               area="frontend"/>
+    <template id="casio_withdrawal_submission_email_email_template"
+              label="Withdrawal submission emails"
+              file="withdrawal_submission.html"
+              type="html"
+              module="CasioEMEA_Withdrawal"
+              area="frontend"/>
+    <template id="casio_withdrawal_confirmation_email_email_template"
+              label="Withdrawal confirmation emails"
+              file="withdrawal_confirmation.html"
+              type="html"
+              module="CasioEMEA_Withdrawal"
+              area="frontend"/>
 </config>

@@ -21,12 +21,29 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
     <default>
         <casio_withdrawal>
+            <configuration>
+                <enable>0</enable>
+                <shipping_return_cron>*/5 * * * *</shipping_return_cron>
+                <interval>45</interval>
+            </configuration>
             <piano_email>
                 <enable>1</enable>
                 <email_sender>support</email_sender>
                 <email_template>casio_withdrawal_piano_email_email_template</email_template>
                 <send_email_copy_method>bcc</send_email_copy_method>
             </piano_email>
+            <submission_email>
+                <enable>1</enable>
+                <email_sender>support</email_sender>
+                <email_template>casio_withdrawal_submission_email_email_template</email_template>
+                <send_email_copy_method>bcc</send_email_copy_method>
+            </submission_email>
+            <confirmation_email>
+                <enable>1</enable>
+                <email_sender>support</email_sender>
+                <email_template>casio_withdrawal_confirmation_email_email_template</email_template>
+                <send_email_copy_method>bcc</send_email_copy_method>
+            </confirmation_email>
         </casio_withdrawal>
     </default>
 </config>

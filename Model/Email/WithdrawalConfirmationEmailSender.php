@@ -30,12 +30,15 @@ use Magento\Framework\Translate\Inline\StateInterface;
 use Magento\Sales\Model\Order;
 use Magento\Store\Model\ScopeInterface;
 use Psr\Log\LoggerInterface;
+use Magento\Rma\Api\RmaRepositoryInterface;
+use Magento\Store\Model\StoreManagerInterface;
+use Magento\Sales\Model\Order\Address\Renderer as AddressRenderer;
 
 /**
  * Sends the "Withdrawal submission emails piano" transactional email to the customer
  * when a piano order withdrawal is submitted.
  */
-class PianoWithdrawalEmailSender
+class WithdrawalConfirmationEmailSender
 {
     /**
      * Undocumented function
@@ -45,24 +48,31 @@ class PianoWithdrawalEmailSender
      * @param ScopeConfigInterface $scopeConfig
      * @param WithdrawalHelper $withdrawalHelper
      * @param LoggerInterface $logger
+     * @param RmaRepositoryInterface $rmaRepository
+     * @param StoreManagerInterface $storeManager
+     * @param AddressRenderer $addressRenderer
      */
     public function __construct(
         private readonly TransportBuilder $transportBuilder,
         private readonly StateInterface $inlineTranslation,
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly WithdrawalHelper $withdrawalHelper,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly RmaRepositoryInterface $rmaRepository,
+        private readonly StoreManagerInterface $storeManager,
+        private readonly AddressRenderer $addressRenderer
     ) {
     }
 
     /**
-     * Send piano withdrawal submission email
+     * Send order withdrawal confirmation email
      *
      * @param Order $order
+     * @param integer $rmaId
      * @param integer $scenario
      * @return boolean
      */
-    public function send(Order $order, int $scenario = 0): bool
+    public function send(Order $order, int $rmaId, int $scenario = 0): bool
     {
         $storeId = (int)$order->getStoreId();
 
@@ -76,7 +86,7 @@ class PianoWithdrawalEmailSender
         }
 
         $template = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_TEMPLATE,
+            WithdrawalHelper::XML_PATH_CONFIRMATION_EMAIL_TEMPLATE,
             $storeId
         );
         if (empty($template)) {
@@ -86,20 +96,12 @@ class PianoWithdrawalEmailSender
         $senderInfo = $this->getSenderInfo($storeId);
         $copyTo = $this->getCopyToList($storeId);
         $copyMethod = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_COPY_METHOD,
+            WithdrawalHelper::XML_PATH_CONFIRMATION_EMAIL_COPY_METHOD,
             $storeId
         );
+        
 
-        $templateVars = [
-            'customer_name' => $order->getCustomerName(),
-            'order_increment_id' => $order->getIncrementId(),
-            'order_date' => $order->getCreatedAt(),
-            'support_mail' => $this->scopeConfig->getValue(
-                'trans_email/ident_support/email',
-                ScopeInterface::SCOPE_STORE,
-                $storeId
-            ),
-        ];
+        $templateVars = $this->getRmaDetails($order, (int)$rmaId, $storeId);
 
         $this->inlineTranslation->suspend();
         try {
@@ -138,7 +140,7 @@ class PianoWithdrawalEmailSender
             }
         } catch (\Throwable $e) {
             $this->logger->error(
-                'Failed to send piano withdrawal submission email: ' . $e->getMessage(),
+                'Failed to send order withdrawal submission email: ' . $e->getMessage(),
                 ['order_id' => $order->getIncrementId()]
             );
             return false;
@@ -158,7 +160,7 @@ class PianoWithdrawalEmailSender
     private function getSenderInfo(int $storeId): array
     {
         $sender = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_SENDER,
+            WithdrawalHelper::XML_PATH_CONFIRMATION_EMAIL_SENDER,
             $storeId
         ) ?: 'support';
 
@@ -185,12 +187,56 @@ class PianoWithdrawalEmailSender
     private function getCopyToList(int $storeId): array
     {
         $raw = $this->withdrawalHelper->getPianoEmailConfig(
-            WithdrawalHelper::XML_PATH_PIANO_EMAIL_COPY_TO,
+            WithdrawalHelper::XML_PATH_CONFIRMATION_EMAIL_COPY_TO,
             $storeId
         );
         if (empty($raw)) {
             return [];
         }
         return array_filter(array_map('trim', explode(',', $raw)));
+    }
+
+    /**
+     * Return Rma details
+     *
+     * @param Order $order
+     * @param int $rmaId
+     * @param int $storeId
+     * @return array 
+     */
+    private function getRmaDetails(Order $order, int $rmaId, int $storeId) :array
+    {
+        $rmaDetails = [];
+        $rma = $this->rmaRepository->get($rmaId);
+        $store = $this->storeManager->getStore($storeId);
+        if ($rma) {
+           $rmaDetails = [
+                'rma' => $rma,
+                'rma_id' => $rma->getId(),
+                'rma_data' => [
+                                'status_label' => is_string($rma->getStatusLabel()) ?
+                                    $rma->getStatusLabel() : $rma->getStatusLabel()->render(),
+                            ],
+                'order' => $order,
+                'order_data' => [
+                                'customer_name' => $order->getCustomerName(),
+                            ],
+                'created_at_formatted_1' => $rma->getCreatedAtFormated(1),
+                'store' => $store,
+                'return_address' => $returnAddress,
+                'item_collection' => $rma->getItemsForDisplay(),
+                'formattedShippingAddress' => $this->addressRenderer->format(
+                                $order->getShippingAddress(),
+                                'html'
+                            ),
+                'formattedBillingAddress' => $this->addressRenderer->format(
+                                $order->getBillingAddress(),
+                                'html'
+                            ),
+                'supportEmail' => $store->getConfig('trans_email/ident_support/email'),
+                'storePhone' => $store->getConfig('general/store_information/phone')
+            ];
+        }
+        return $rmaDetails;
     }
 }

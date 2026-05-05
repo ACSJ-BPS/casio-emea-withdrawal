@@ -48,6 +48,8 @@ use Throwable;
 use Exception;
 use CasioEMEA\CabinetPiano\ViewModel\PianoDetails;
 use CasioEMEA\Withdrawal\Model\Email\PianoWithdrawalEmailSender;
+use CasioEMEA\Withdrawal\Model\Email\WithdrawalSubmissionEmailSender;
+use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
 
 /**
  * Controller class Withdraw. Contains logic of request, responsible for withdrawal creation
@@ -123,12 +125,11 @@ class Withdraw extends Returns implements HttpPostActionInterface
         private readonly StoreManagerInterface $storeManager,
         private readonly CustomerSession $customerSession,
         private readonly RedirectInterface $redirect,
-<<<<<<< HEAD
         private readonly PianoDetails $pianoViewModel,
         private readonly PianoWithdrawalEmailSender $pianoWithdrawalEmailSender,
-=======
         private readonly OrderItemRepositoryInterface $orderItemRepository,
->>>>>>> master
+        private readonly WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender,
+        private readonly WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender,
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -192,6 +193,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
                 $this->_redirect('sales/order/history');
                 return;
@@ -212,6 +214,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
                     $this->_redirect('sales/order/history');

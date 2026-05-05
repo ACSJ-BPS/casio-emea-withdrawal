@@ -20,7 +20,7 @@
  */
 -->
 
-<!--@subject {{trans "Your withdrawal request for order #%order_id" order_id=$order_increment_id}} @-->
+<!--@subject {{trans "We have received your withdrawal – Order number #%order_id" order_id=$order_increment_id}} @-->
 <!--@vars {
 "template config_path=\"design\/email\/header_template\"":"Email Header Template",
 "var customer_name":"Customer Name",
@@ -42,15 +42,16 @@
     <tr class="email-information">
         <td class="email-information-content">
             <p>
-                {{trans "We have received your withdrawal notice dated %order_date regarding order #%order_id."
+                {{trans "we have received your notice of withdrawal dated %order_date placed on #%order_id."
                     order_id=$order_increment_id
                     order_date=$order_date}}
             </p>
             <p>
-                {{trans "At the time of your withdrawal, your order was already in the final stages of preparation for dispatch or was already on its way to you. Unfortunately, due to our automated dispatch process, we were unable to stop the delivery. Please contact our customer service team using the contact details below so that we can discuss the next steps for your return."}}
+                {{trans "As your order was still in our warehouse at the time of cancellation and had not yet been dispatched, we were able to cancel it for you immediately. We will inform you shortly in a separate email regarding the refund of your purchase amount. The refund will be processed as quickly as possible – you will usually receive a refund of your payment via the original payment method within 14 days."}}
             </p>
             <p>
-                {{trans "If you have any questions regarding your cancellation or return, we are always here to help. Click [here] to find out more or  email us at shop_de@casio.de. We’re happy to help!"}}
+                {{trans "If you have any questions regarding your cancellation or return, we are always here to help."}}
+                {{trans Click [here] to find out more or email us at shop_de@casio.de. We’re happy to help!}}
             </p>
         </td>
     </tr>
@@ -62,6 +63,9 @@
             <p>{{trans "Kind regards,"}}</p>
             <p>{{trans "Your CASIO Online Shop Team"}}</p>
         </td>
+    </tr>
+    <tr>
+        <td><br></td>
     </tr>
 </table>
 {{template config_path="design/email/footer_template"}}
