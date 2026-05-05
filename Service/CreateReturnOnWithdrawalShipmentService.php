@@ -43,6 +43,7 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Shipment;
 use Magento\Rma\Api\Data\RmaInterface;
 use Magento\Sales\Api\OrderItemRepositoryInterface;
+use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
 
 class CreateReturnOnWithdrawalShipmentService
 {
@@ -61,6 +62,7 @@ class CreateReturnOnWithdrawalShipmentService
      * @param RmaItemResourceModel $rmaItemResourceModel
      * @param HistoryFactory $statusHistoryFactory
      * @param OrderItemRepositoryInterface $orderItemRepository
+     * @param WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender
      */
     public function __construct(
         private readonly RmaFactory $rmaFactory,
@@ -74,7 +76,8 @@ class CreateReturnOnWithdrawalShipmentService
         private readonly RmaResourceModel $rmaResourceModel,
         private readonly RmaItemResourceModel $rmaItemResourceModel,
         private readonly HistoryFactory $statusHistoryFactory,
-        private readonly OrderItemRepositoryInterface $orderItemRepository
+        private readonly OrderItemRepositoryInterface $orderItemRepository,
+        private readonly WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender
     ) {
     }
     
@@ -127,10 +130,10 @@ class CreateReturnOnWithdrawalShipmentService
                 }
             $statusHistory = $this->statusHistoryFactory->create();
             $statusHistory->setRmaEntityId($rmaObject->getEntityId());
-            $statusHistory->sendNewRmaEmail();
             $statusHistory->saveSystemComment();
 
             $this->updateOrderAndItemsForWithdrawal($order, $rmaItems);
+            $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
         } finally {
             // Always stop emulation even if exception occurs
             $this->appEmulation->stopEnvironmentEmulation();

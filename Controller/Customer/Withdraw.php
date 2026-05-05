@@ -89,7 +89,8 @@ class Withdraw extends Returns implements HttpPostActionInterface
     private $rmaHelper;
 
     /**
-     * Withdraw constructor.
+     * Constructor
+     *
      * @param \Magento\Framework\App\Action\Context $context
      * @param \Magento\Framework\Registry $coreRegistry
      * @param RmaFactory $rmaModelFactory
@@ -107,6 +108,9 @@ class Withdraw extends Returns implements HttpPostActionInterface
      * @param RedirectInterface $redirect
      * @param PianoDetails $pianoViewModel
      * @param PianoWithdrawalEmailSender $pianoWithdrawalEmailSender
+     * @param OrderItemRepositoryInterface $orderItemRepository
+     * @param WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender
+     * @param WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender
      * @param Data|null $rmaHelper
      */
     public function __construct(
@@ -245,7 +249,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
              * If it's not a full order withdrawal, we will validate the input qty for each item and set the status to partially withdrawn for items that are being withdrawn. The order will be considered fully
              * withdrawn only if all items are being fully withdrawn, otherwise it will be partially withdrawn. This is to ensure that the order status is consistent with the item statuses and to avoid confusion for the customer and the merchant.
              */
-            if ($fullOrderWithdrawal && empty($shippedItems)) {
+            if ($fullOrderWithdrawal && !empty($shippedItems)) {
                 foreach ($order->getAllItems() as $orderItem) {
                     if ($orderItem->isDummy()) {
                         continue;
@@ -281,6 +285,8 @@ class Withdraw extends Returns implements HttpPostActionInterface
                 $orderItem = $this->orderItemRepository->get((int)$item['order_item_id']);
                 if ($withdrawnStatus === WithdrawalHelper::ORDER_FULLY_WITHDRAWN) {
                     $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$item['reason']);
                 } else {
                     if ((int)$orderItem->getQtyOrdered() === (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']) {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
@@ -323,7 +329,6 @@ class Withdraw extends Returns implements HttpPostActionInterface
 
                 $statusHistory = $this->statusHistoryFactory->create();
                 $statusHistory->setRmaEntityId($rmaObject->getEntityId());
-                $statusHistory->sendNewRmaEmail();
                 $statusHistory->saveSystemComment();
 
                 if (isset($post['rma_comment']) && !empty($post['rma_comment'])) {
@@ -343,6 +348,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
 
                 $order->setItems($itemsToSave);
                 $this->orderRepository->save($order);
+                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
 
                 $this->messageManager->addSuccessMessage(
                     __(

@@ -33,6 +33,7 @@ use Psr\Log\LoggerInterface;
 use Magento\Rma\Api\RmaRepositoryInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order\Address\Renderer as AddressRenderer;
+use Magento\Rma\Helper\Data as RmaHelper;
 
 /**
  * Sends the "Withdrawal submission emails piano" transactional email to the customer
@@ -51,6 +52,7 @@ class WithdrawalConfirmationEmailSender
      * @param RmaRepositoryInterface $rmaRepository
      * @param StoreManagerInterface $storeManager
      * @param AddressRenderer $addressRenderer
+     * @param RmaHelper $rmaHelper
      */
     public function __construct(
         private readonly TransportBuilder $transportBuilder,
@@ -60,7 +62,8 @@ class WithdrawalConfirmationEmailSender
         private readonly LoggerInterface $logger,
         private readonly RmaRepositoryInterface $rmaRepository,
         private readonly StoreManagerInterface $storeManager,
-        private readonly AddressRenderer $addressRenderer
+        private readonly AddressRenderer $addressRenderer,
+        private readonly RmaHelper $rmaHelper
     ) {
     }
 
@@ -76,7 +79,7 @@ class WithdrawalConfirmationEmailSender
     {
         $storeId = (int)$order->getStoreId();
 
-        if (!$this->withdrawalHelper->isPianoWithdrawalEmailEnabled($storeId)) {
+        if (!$this->withdrawalHelper->isOrderWithdrawalConfirmationEmailEnabled($storeId)) {
             return false;
         }
 
@@ -207,8 +210,10 @@ class WithdrawalConfirmationEmailSender
     private function getRmaDetails(Order $order, int $rmaId, int $storeId) :array
     {
         $rmaDetails = [];
+
         $rma = $this->rmaRepository->get($rmaId);
         $store = $this->storeManager->getStore($storeId);
+        $returnAddress = $this->rmaHelper->getReturnAddress('html', [], $storeId);
         if ($rma) {
            $rmaDetails = [
                 'rma' => $rma,

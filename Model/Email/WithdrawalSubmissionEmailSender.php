@@ -66,7 +66,7 @@ class WithdrawalSubmissionEmailSender
     {
         $storeId = (int)$order->getStoreId();
 
-        if (!$this->withdrawalHelper->isPianoWithdrawalEmailEnabled($storeId)) {
+        if (!$this->withdrawalHelper->isOrderWithdrawalSubmissionEmailEnabled($storeId)) {
             return false;
         }
 

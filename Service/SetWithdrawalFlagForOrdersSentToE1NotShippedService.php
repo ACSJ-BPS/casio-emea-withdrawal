@@ -67,7 +67,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 }
 
                 if ((float)$orderItem->getQtyShipped() > 0) {
-                    $excludedItems[] = $orderItem;
+                    $excludedItems[] = ['order_item_id' => (int)$orderItem->getItemId()];
                     continue;
                 }
 

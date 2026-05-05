@@ -49,6 +49,8 @@ use Throwable;
 use Exception;
 use CasioEMEA\CabinetPiano\ViewModel\PianoDetails;
 use CasioEMEA\Withdrawal\Model\Email\PianoWithdrawalEmailSender;
+use CasioEMEA\Withdrawal\Model\Email\WithdrawalSubmissionEmailSender;
+use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
 
 /**
  * Controller class Withdraw. Contains logic of request, responsible for withdrawal creation
@@ -88,7 +90,8 @@ class Withdraw extends Action implements HttpPostActionInterface
     private $rmaHelper;
 
     /**
-     * Withdraw constructor.
+     * UWithdraw constructor.
+     *
      * @param \Magento\Framework\App\Action\Context $context
      * @param \Magento\Framework\Registry $coreRegistry
      * @param RmaFactory $rmaModelFactory
@@ -103,8 +106,12 @@ class Withdraw extends Action implements HttpPostActionInterface
      * @param StoreManagerInterface $storeManager
      * @param CustomerSession $customerSession
      * @param RedirectInterface $redirect
+     * @param Guest $salesGuestHelper
+     * @param RequestInterface $request
      * @param PianoDetails $pianoViewModel
      * @param PianoWithdrawalEmailSender $pianoWithdrawalEmailSender
+     * @param WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender
+     * @param WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender
      * @param Data|null $rmaHelper
      */
     public function __construct(
@@ -126,6 +133,8 @@ class Withdraw extends Action implements HttpPostActionInterface
         private readonly RequestInterface $request,
         private readonly PianoDetails $pianoViewModel,
         private readonly PianoWithdrawalEmailSender $pianoWithdrawalEmailSender,
+        private readonly WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender,
+        private readonly WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender,
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -194,6 +203,7 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
                 $this->_redirect('sales/order/history');
                 return;
@@ -214,6 +224,7 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
                     $this->_redirect('sales/order/history');
@@ -283,6 +294,9 @@ class Withdraw extends Action implements HttpPostActionInterface
                 } else {
                     if ((int)$orderItem->getQtyOrdered() === (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']) {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                        $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                        $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
+                        $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$item['reason']);
                     } else {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
                         $isOrderFullyWithdrawn = false;
@@ -322,7 +336,6 @@ class Withdraw extends Action implements HttpPostActionInterface
 
                 $statusHistory = $this->statusHistoryFactory->create();
                 $statusHistory->setRmaEntityId($rmaObject->getEntityId());
-                $statusHistory->sendNewRmaEmail();
                 $statusHistory->saveSystemComment();
 
                 if (isset($post['rma_comment']) && !empty($post['rma_comment'])) {
@@ -342,6 +355,7 @@ class Withdraw extends Action implements HttpPostActionInterface
 
                 $order->setItems($itemsToSave);
                 $this->orderRepository->save($order);
+                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
 
                 $this->messageManager->addSuccessMessage(
                     __(

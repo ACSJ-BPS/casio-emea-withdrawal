@@ -28,6 +28,7 @@ use  Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Item;
 use CasioEMEA\E1Integration\Model\Config\Source\RmaReasonList;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
+use Magento\Store\Model\ScopeInterface;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
@@ -137,12 +138,13 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * Check if the withdrawal module is enabled in the configuration
      * @return bool
      */
-    public function isEnabled() : bool
+    public function isEnabled(?int $storeId = null) : bool
     {
-        if (!$this->scopeConfig->isSetFlag(self::XML_PATH_WITHDRAWAL_ENABLED)) {
-            return false;
-        }
-        return true;
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_WITHDRAWAL_ENABLED,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
     }
 
     /**
@@ -359,6 +361,36 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     {
         return $this->scopeConfig->isSetFlag(
             self::XML_PATH_PIANO_EMAIL_ENABLED,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if order withdrawal submission email is enabled at the given store scope
+     *
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isOrderWithdrawalSubmissionEmailEnabled($storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_SUBMISSION_EMAIL_ENABLED,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if order withdrawal submission email is enabled at the given store scope
+     *
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isOrderWithdrawalConfirmationEmailEnabled($storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_CONFIRMATION_EMAIL_ENABLED,
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
             $storeId
         );
