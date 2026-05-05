@@ -36,12 +36,14 @@ use Psr\Log\LoggerInterface;
 use Magento\Sales\Model\Order;
 use Magento\Rma\Helper\Data;
 use CasioEMEA\Withdrawal\Service\CreateWithdrawalCreditmemoService;
+use CasioEMEA\Withdrawal\Service\SetWithdrawalFlagForOrdersSentToE1NotShippedService;
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
 use Magento\Framework\Filter\FilterManager;
 use Casio\RmaAutomation\Helper\Config as RmaAutomationHelper;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\App\Response\RedirectInterface;
+use Magento\Sales\Api\OrderItemRepositoryInterface;
 use Throwable;
 use Exception;
 use CasioEMEA\CabinetPiano\ViewModel\PianoDetails;
@@ -94,6 +96,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
      * @param DateTime $dateTime
      * @param HistoryFactory $statusHistoryFactory
      * @param CreateWithdrawalCreditmemoService $createWithdrawalCreditmemoService
+     * @param SetWithdrawalFlagForOrdersSentToE1NotShippedService $setWithdrawalFlagService
      * @param WithdrawalHelper $withdrawalHelper
      * @param FilterManager $filterManager
      * @param RmaAutomationHelper $rmaAutomationHelper
@@ -113,14 +116,19 @@ class Withdraw extends Returns implements HttpPostActionInterface
         DateTime $dateTime,
         HistoryFactory $statusHistoryFactory,
         private readonly CreateWithdrawalCreditmemoService $createWithdrawalCreditmemoService,
+        private readonly SetWithdrawalFlagForOrdersSentToE1NotShippedService $setWithdrawalFlagService,
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly FilterManager $filterManager,
         private readonly RmaAutomationHelper $rmaAutomationHelper,
         private readonly StoreManagerInterface $storeManager,
         private readonly CustomerSession $customerSession,
         private readonly RedirectInterface $redirect,
+<<<<<<< HEAD
         private readonly PianoDetails $pianoViewModel,
         private readonly PianoWithdrawalEmailSender $pianoWithdrawalEmailSender,
+=======
+        private readonly OrderItemRepositoryInterface $orderItemRepository,
+>>>>>>> master
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -177,11 +185,13 @@ class Withdraw extends Returns implements HttpPostActionInterface
             return;
         }
 
+        // If order is not sent to E1, we can directly create credit memo without creating RMA
         if ($this->withdrawalHelper->orderNotSentToE1($order)) {
             try {
                 $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
+                $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
-                $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems);
+                $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
                 $this->_redirect('sales/order/history');
                 return;
@@ -193,13 +203,46 @@ class Withdraw extends Returns implements HttpPostActionInterface
             }
         }
 
+        $shippedItems = [];
+
+        // If order is sent to E1 but not shipped, we will set withdrawal flags without creating RMA and credit memo, and the merchant will process the withdrawal in E1 based on the flags. The RMA will be created after the order is shipped.
+        if ($this->withdrawalHelper->orderSentToE1($order)) {
+            try {
+                $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
+                $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
+                $withdrawalItems = isset($post['items']) ? $post['items'] : [];
+                $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                if (empty($shippedItems)) {
+                    $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
+                    $this->_redirect('sales/order/history');
+                    return;
+                }
+            } catch (\Exception $e) {
+                $this->logger->critical('Error setting withdrawal flag for order sent to E1 but not shipped: ' . $e->getMessage());
+                $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+                $this->_redirect('sales/order/history');
+                return;
+            }
+        }
+
         if (!$this->rmaHelper->canCreateRma($orderId)) {
             return $this->resultRedirectFactory->create()->setPath('withdrawal/customer/create', ['order_id' => $orderId]);
         }
 
+        // Validate input and create RMA
         if ($post) {
+            $withdrawnStatus = WithdrawalHelper::ORDER_NOT_WITHDRAWN;
             $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
-            if ($fullOrderWithdrawal) {
+            $isOrderFullyWithdrawn = true;
+            $orderStatusTobeSet = $order->getStatus();
+            $orderComment = 'This Order was fully withdrawn by the customer.';
+            
+            /**
+             * If it's a full order withdrawal, we will set the requested qty for all items to be the remaining refundable qty and set the status to fully withdrawn.
+             * If it's not a full order withdrawal, we will validate the input qty for each item and set the status to partially withdrawn for items that are being withdrawn. The order will be considered fully
+             * withdrawn only if all items are being fully withdrawn, otherwise it will be partially withdrawn. This is to ensure that the order status is consistent with the item statuses and to avoid confusion for the customer and the merchant.
+             */
+            if ($fullOrderWithdrawal && empty($shippedItems)) {
                 foreach ($order->getAllItems() as $orderItem) {
                     if ($orderItem->isDummy()) {
                         continue;
@@ -208,11 +251,17 @@ class Withdraw extends Returns implements HttpPostActionInterface
                         'order_item_id'      => $orderItem->getId(),
                         'qty_requested'      => (string)$orderItem->getQtyToRefund(),
                         'condition'  => "0",
-                        'reason'  => "0"
+                        'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0"
                     ];
                 }
                 $post['items'] = $itemsToReturn;
+                $orderStatusTobeSet = $order->getStatus();
+                $orderComment = 'This Order was fully withdrawn by the customer.';
+                $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
             }
+
+            $itemsToSave = [];
+            $post['items'] = !empty($shippedItems) ? $this->getRemainingItemToWithdraw($post['items'], $shippedItems) : $post['items'];
             foreach ($post['items'] as $key => $item) {
                 foreach ($simplefields as $simplefield) {
                     $paramValue = $item[$simplefield];
@@ -226,7 +275,26 @@ class Withdraw extends Returns implements HttpPostActionInterface
 
                 $post['items'][$key]['qty_authorized'] = $item['qty_requested'];
                 $post['items'][$key]['status'] = $this->getStatus();
+                $orderItem = $this->orderItemRepository->get((int)$item['order_item_id']);
+                if ($withdrawnStatus === WithdrawalHelper::ORDER_FULLY_WITHDRAWN) {
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                } else {
+                    if ((int)$orderItem->getQtyOrdered() === (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']) {
+                        $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                    } else {
+                        $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
+                        $isOrderFullyWithdrawn = false;
+                        $orderComment = 'This Order was partially withdrawn by the customer.';
+                    }
+
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$item['reason']);
+                }
+                $itemsToSave[] = $orderItem;
             }
+
+            // Set order withdrawal status based on whether it's a full order withdrawal or if all items are fully withdrawn
+            $withdrawnStatus = $isOrderFullyWithdrawn ? WithdrawalHelper::ORDER_FULLY_WITHDRAWN : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN;
 
             if (!empty($error)) {
                 $this->messageManager->addErrorMessage(
@@ -261,6 +329,17 @@ class Withdraw extends Returns implements HttpPostActionInterface
                     $comment->setRmaEntityId($rmaObject->getEntityId());
                     $comment->saveComment($post['rma_comment'], true, false);
                 }
+
+                $order->setStatus($orderStatusTobeSet);
+                $order->setData(WithdrawalHelper::WITHDRAWAL_ORDER_KEY, $withdrawnStatus);
+                $order->addCommentToStatusHistory(
+                    $orderComment,
+                    $order->getStatus(),                            
+                    true                                             
+                );
+
+                $order->setItems($itemsToSave);
+                $this->orderRepository->save($order);
 
                 $this->messageManager->addSuccessMessage(
                     __(
@@ -344,5 +423,24 @@ class Withdraw extends Returns implements HttpPostActionInterface
             return true;
         }
         return false;
+    }
+
+    /**
+     * Get the list of items that are not shipped yet for orders that are sent to E1 but not shipped, so that the withdrawal can be processed for those items and excluded for items that are already shipped. An order is considered not shipped if all items have their shipped quantity equal to zero.
+     * @param array $post
+     * @param array $shippedItems
+     * @return array
+     */
+    private function getRemainingItemToWithdraw(array $items, array $shippedItems): array
+    {
+        $matchingIds = array_column($shippedItems, 'order_item_id');
+
+        $result = array_filter($items, function($item) use ($matchingIds) {
+            return in_array($item['order_item_id'], $matchingIds);
+        });
+
+        // Re-index if needed
+        $result = array_values($result);
+        return $result;
     }
 }

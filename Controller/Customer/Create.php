@@ -87,10 +87,6 @@ class Create extends RmaReturns implements HttpGetActionInterface
 
         $this->_coreRegistry->register('current_order', $order);
 
-        // if (!$this->_loadOrderItems($orderId)) {
-        //     return;
-        // }
-
         $this->_view->loadLayout();
 
         $this->_view->getPage()->getConfig()->getTitle()->set(__('Withdrawal Form'));
