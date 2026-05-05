@@ -1,0 +1,76 @@
+<!--
+/*
+ * ADOBE CONFIDENTIAL
+ * ___________________
+ *
+ * Copyright 2026 Adobe
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained herein is, and remains
+ * the property of Adobe and its suppliers, if any. The intellectual
+ * and technical concepts contained herein are proprietary to Adobe
+ * and its suppliers and are protected by all applicable intellectual
+ * property laws, including trade secret and copyright laws.
+ * Adobe permits you to use and modify this file
+ * in accordance with the terms of the Adobe license agreement
+ * accompanying it (see LICENSE_ADOBE_PS.txt).
+ * If you have received this file from a source other than Adobe,
+ * then your use, modification, or distribution of it
+ * requires the prior written permission from Adobe.
+ */
+-->
+
+<!--@subject {{trans "Your withdrawal request for order #%order_id" order_id=$order_increment_id}} @-->
+<!--@vars {
+"template config_path=\"design\/email\/header_template\"":"Email Header Template",
+"var customer_name":"Customer Name",
+"var order_increment_id":"Order Increment Id",
+"var order_date":"Order Date",
+"var support_mail":"Support Email",
+"template config_path=\"design\/email\/footer_template\"":"Email Footer Template"
+} @-->
+{{template config_path="design/email/header_template"}}
+<table>
+    <tr class="email-intro">
+        <td>
+            <p class="greeting">{{trans "Dear %customer_name," customer_name=$customer_name}}</p>
+        </td>
+    </tr>
+    <tr>
+        <td><br></td>
+    </tr>
+    <tr class="email-information">
+        <td class="email-information-content">
+            <p>
+                {{trans "We have received your withdrawal request for order #%order_id placed on %order_date."
+                    order_id=$order_increment_id
+                    order_date=$order_date}}
+            </p>
+            <p>
+                {{trans "Because your order contains a Cabinet Piano, our customer support team will contact you to coordinate the withdrawal and pickup of the instrument."}}
+            </p>
+            <p>
+                {{trans "If you have any questions, please contact us at"}}
+                {{trans '<a href="mailto:%support_mail">%support_mail</a>.' support_mail=$support_mail |raw}}
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <td><br></td>
+    </tr>
+    <tr class="email-intro-support">
+        <td>
+            <p>{{trans "Sincerely,"}}</p>
+            <p>{{trans "The Casio Customer Support Team"}}</p>
+        </td>
+    </tr>
+    <tr>
+        <td><br></td>
+    </tr>
+    <tr class="email-intro-automatic-email">
+        <td>
+            <p><i>{{trans "This is an automatic email. Replies to this email cannot be processed."}}</i></p>
+        </td>
+    </tr>
+</table>
+{{template config_path="design/email/footer_template"}}

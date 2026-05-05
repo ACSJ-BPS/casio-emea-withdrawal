@@ -32,12 +32,18 @@ use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
     public const XML_PATH_WITHDRAWAL_ENABLED = 'casio_withdrawal/configuration/enable';
+    public const XML_PATH_PIANO_EMAIL_ENABLED = 'casio_withdrawal/piano_email/enable';
+    public const XML_PATH_PIANO_EMAIL_SENDER = 'casio_withdrawal/piano_email/email_sender';
+    public const XML_PATH_PIANO_EMAIL_TEMPLATE = 'casio_withdrawal/piano_email/email_template';
+    public const XML_PATH_PIANO_EMAIL_COPY_TO = 'casio_withdrawal/piano_email/send_email_copyto';
+    public const XML_PATH_PIANO_EMAIL_COPY_METHOD = 'casio_withdrawal/piano_email/send_email_copy_method';
 
     public const XML_PATH_WITHDRAWAL_INTERVAL = 'casio_withdrawal/configuration/interval'; 
 
     public const DEFAULT_INTERVAL = 45;
 
     public const WITHDRAWAL_STATUS = 'order_withdrawn';
+    public const PIANO_ORDER_STATUS = 'withdrawal_request_submitted';
 
     public const WITHDRAWAL_ORDER_KEY = 'withdrawal_order_status';
 
@@ -321,5 +327,36 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             }
         }
         return '';
+    }
+
+    /**
+     * Check if piano withdrawal submission email is enabled at the given store scope
+     *
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isPianoWithdrawalEmailEnabled($storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_PIANO_EMAIL_ENABLED,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Read scoped string config value
+     *
+     * @param string $path
+     * @param int|string|null $storeId
+     * @return string
+     */
+    public function getPianoEmailConfig(string $path, $storeId = null): string
+    {
+        return (string)$this->scopeConfig->getValue(
+            $path,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
     }
 }
