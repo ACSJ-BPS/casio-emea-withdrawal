@@ -28,6 +28,7 @@ use CasioEMEA\Withdrawal\Service\CreateReturnOnWithdrawalShipmentService;
 use Magento\Sales\Api\ShipmentRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\ResourceModel\Order\Shipment\CollectionFactory as ShipmentCollectionFactory;
+use Psr\Log\LoggerInterface;
 
 class CreateReturnForWithdrawnOrderAfterShipment
 {
@@ -35,16 +36,20 @@ class CreateReturnForWithdrawnOrderAfterShipment
     /**
      * Constructor for CreateReturnOnShipment observer
      *
-     * @param RmaRepositoryInterface $rmaRepository
      * @param OrderRepositoryInterface $orderRepository
      * @param WithdrawalHelper $withdrawalHelper
-     */    
+     * @param ShipmentRepositoryInterface $shipmentRepository
+     * @param CreateReturnOnWithdrawalShipmentService $createReturnOnWithdrawalShipmentService
+     * @param ShipmentCollectionFactory $shipmentCollectionFactory
+     * @param LoggerInterface $logger
+     */   
     public function __construct(
         private readonly OrderRepositoryInterface $orderRepository,
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly ShipmentRepositoryInterface $shipmentRepository,
         private readonly CreateReturnOnWithdrawalShipmentService $createReturnOnWithdrawalShipmentService,
-        private readonly ShipmentCollectionFactory $shipmentCollectionFactory
+        private readonly ShipmentCollectionFactory $shipmentCollectionFactory,
+        private readonly LoggerInterface $logger
     ) {
     }
     
@@ -58,7 +63,17 @@ class CreateReturnForWithdrawnOrderAfterShipment
         $shipmentCollection->addFieldToFilter(WithdrawalHelper::WITHDRAWAL_FLAG, WithdrawalHelper::CREATE_RETURN);
 
         foreach ($shipmentCollection as $shipment) {
-             $this->createReturnOnWithdrawalShipmentService->execute((int)$shipment->getEntityId());
+            try {
+                $this->createReturnOnWithdrawalShipmentService->execute((int)$shipment->getEntityId());
+                $this->logger->info('Successfully created return for shipment ' . $shipment->getIncrementId());
+            } catch (\Exception $e) {
+                $this->logger->error(
+                    'Failed to create return for shipment ' . $shipment->getIncrementId() . ': ' . $e->getMessage(),
+                    ['exception' => $e]
+                );
+                // Continue processing other shipments even if this one fails
+                continue;
+            }
         }
     }
 

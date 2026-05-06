@@ -33,7 +33,9 @@
 "var formattedShippingAddress|raw":"Shipping Address",
 "var store.frontend_name":"Store Name",
 "var supportEmail": "Support Email",
-"var rma_id":"Rma Id"
+"var rma_id":"Rma Id",
+"var is_delivered": "Is Delivered",
+"var not_delivered": "Not Delivered"
 "template config_path=\"design\/email\/footer_template\"":"Email Footer Template"
 } @-->
 {{template config_path="design/email/header_template"}}
@@ -52,6 +54,7 @@
                 {{trans "As previously mentioned, we would now like to inform you of the next steps regarding your withdrawal of order #%order_id."
                     order_id=$order_increment_id}}
             </p>
+            {{depend not_delivered}}
             <p>
                 {{trans "At the time of your withdrawal, your order was already in the final stages of preparation for dispatch or was already on its way to you. Due to the automated dispatch process, we were unfortunately unable to stop the shipment."}}
             </p>
@@ -65,6 +68,18 @@ print out the label and attach it to your parcel."}}
             <p>
                 {{trans "You can easily find your nearest UPS Access Point here: [Link to UPS Access Point Finder]."}}
             </p>
+            {{/depend}}
+            {{depend is_delivered}}
+            <p>
+                {{trans "To enable us to finalise the processing of your withdrawal, we kindly ask you to return the goods to us in their original condition."}}
+            </p>
+            <p>
+                {{trans "For your return, we are providing you with a free UPS return label, which you will receive shortly by email from our delivery partner. You can either use the label as a mobile barcode directly on your smartphone or print it out and attach it to your parcel."}}
+            </p>
+            <p>
+                {{trans "You can easily find your nearest UPS Access Point here: [Link to UPS Access Point Finder]."}}
+            </p>
+            {{/depend}}
             <p>
                 {{trans "Once we have received and checked your return, you will receive a separate email with all the details regarding your refund. You will usually receive a refund of your payment within 14 days of us receiving the return."}}
             </p>

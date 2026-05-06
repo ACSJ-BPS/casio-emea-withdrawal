@@ -29,6 +29,8 @@ use Magento\Sales\Model\Order\Item;
 use CasioEMEA\E1Integration\Model\Config\Source\RmaReasonList;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use Magento\Store\Model\ScopeInterface;
+use PSpell\Config as PSpellConfig;
+use CasioEMEA\E1Integration\Model\Config as BaseConfig;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
@@ -116,20 +118,22 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     // If order is sent to E1
     public const SCENARIO_SENT_TO_E1 = 2;
 
-     /**
+     
+    /**
      * Constructor for the Data helper
      *
      * @param Context $context
      * @param CustomerSession $customerSession
      * @param RmaReasonList $rmaReasonList
      * @param TimezoneInterface $timezone
+     * @param BaseConfig $baseConfig
      */
-
     public function __construct(
         Context $context,
         private readonly CustomerSession $customerSession,
         private readonly RmaReasonList $rmaReasonList,
-        private readonly TimezoneInterface $timezone
+        private readonly TimezoneInterface $timezone,
+        private readonly BaseConfig $baseConfig
     ) {
         parent::__construct($context);
     }
@@ -330,7 +334,16 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getRmaReasonOptions(): array
     {
-        return $this->rmaReasonList->toOptionArray();
+        $rmaReasonOptions = $this->rmaReasonList->toOptionArray();
+        if ($options = $this->baseConfig->getReasonRestrictedOptions()) {
+            $optionsArray  = explode(",", $options);
+            foreach ($rmaReasonOptions as $index => $option) {
+                if (in_array($option['value'], $optionsArray)) {
+                    unset($rmaReasonOptions[$index]);
+                }
+            }
+        }
+        return $rmaReasonOptions;
     }
 
     /**

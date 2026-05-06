@@ -131,8 +131,9 @@ class CreateReturnOnWithdrawalShipmentService
             $statusHistory = $this->statusHistoryFactory->create();
             $statusHistory->setRmaEntityId($rmaObject->getEntityId());
             $statusHistory->saveSystemComment();
-
+            $shipment->setData(WithdrawalHelper::WITHDRAWAL_FLAG, WithdrawalHelper::RETURN_CREATED);
             $this->updateOrderAndItemsForWithdrawal($order, $rmaItems);
+            $this->shipmentRepository->save($shipment);
             $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
         } finally {
             // Always stop emulation even if exception occurs

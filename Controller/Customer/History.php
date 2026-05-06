@@ -19,38 +19,30 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-declare(strict_types=1);
+namespace CasioEMEA\Withdrawal\Controller\Customer;
 
-namespace CasioEMEA\Withdrawal\Plugin\RmaAutomation\Helper;
+use Magento\Framework\App\Action\HttpGetActionInterface;
 
-use CasioEMEA\RmaAutomation\Helper\Config;
-use Magento\Rma\Api\Data\RmaInterface;
-use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
-
-class ConfigPlugin
+class History extends \Magento\Rma\Controller\Returns implements HttpGetActionInterface
 {
-    /**
-     * Constructor
+  /**
+     * Customer withdraw history
      *
-     * @param WithdrawalHelper $withdrawalHelper
+     * @return false|null
      */
-    public function __construct(
-        private readonly WithdrawalHelper $withdrawalHelper
-    ) {
-    }
-    /**
-     * Alter result if Withdrawal is enabled
-     *
-     * @param Config $subject
-     * @param RmaInterface $rma
-     * @param boolean $result
-     * @return boolean
-     */
-    public function afterCanSendRmaEmail(Config $subject, bool $result, RmaInterface $rma) :bool
+    public function execute()
     {
-        if ($this->withdrawalHelper->isEnabled((int)$rma->getStoreId())) {
+        if (!$this->_isEnabledOnFront()) {
+            $this->_forward('noroute');
             return false;
         }
-        return $result;
+
+        $this->_view->loadLayout();
+        $this->_view->getPage()->getConfig()->getTitle()->set(__('My Withdrawals'));
+
+        if ($block = $this->_view->getLayout()->getBlock('customer.account.link.back')) {
+            $block->setRefererUrl($this->_redirect->getRefererUrl());
+        }
+        $this->_view->renderLayout();
     }
 }

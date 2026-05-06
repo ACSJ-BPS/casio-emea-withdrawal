@@ -27,6 +27,10 @@
 "var order_increment_id":"Order Increment Id",
 "var order_date":"Order Date",
 "var support_mail":"Support Email",
+"var is_delivered": "Is Delivered",
+"var not_delivered": "Not Delivered",
+"var sent_to_e1": "Sent to E1",
+"var not_send_to_e1": "Not sent to E1",
 "template config_path=\"design\/email\/footer_template\"":"Email Footer Template"
 } @-->
 {{template config_path="design/email/header_template"}}
@@ -42,13 +46,30 @@
     <tr class="email-information">
         <td class="email-information-content">
             <p>
-                {{trans "we have received your notice of withdrawal dated %order_date placed on #%order_id."
+                {{trans "We have received your notice of withdrawal dated %order_date placed on #%order_id."
                     order_id=$order_increment_id
                     order_date=$order_date}}
             </p>
+            {{depend not_send_to_e1}}
             <p>
                 {{trans "As your order was still in our warehouse at the time of cancellation and had not yet been dispatched, we were able to cancel it for you immediately. We will inform you shortly in a separate email regarding the refund of your purchase amount. The refund will be processed as quickly as possible – you will usually receive a refund of your payment via the original payment method within 14 days."}}
             </p>
+            {{/depend}}
+            {{depend sent_to_e1}}
+            <p>
+                {{trans "We are currently checking the current status of your order and will get back to you as soon as possible – usually on the next working day – with all further information regarding the process."}}
+            </p>
+            {{/depend}}
+            {{depend not_delivered}}
+            <p>
+                {{trans "We are currently checking the current status of your order and will get back to you as soon as possible – usually on the next working day – with all further information regarding the process."}}
+            </p>
+            {{/depend}}
+            {{depend is_delivered}}
+            <p>
+                {{trans "As you have already received the goods, we will contact you in a further email with all the necessary information regarding the returns process."}}
+            </p>
+            {{/depend}}
             <p>
                 {{trans "If you have any questions regarding your cancellation or return, we are always here to help."}}
                 {{trans Click [here] to find out more or email us at shop_de@casio.de. We’re happy to help!}}

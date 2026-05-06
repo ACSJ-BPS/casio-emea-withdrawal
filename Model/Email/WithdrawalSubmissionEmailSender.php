@@ -30,6 +30,7 @@ use Magento\Framework\Translate\Inline\StateInterface;
 use Magento\Sales\Model\Order;
 use Magento\Store\Model\ScopeInterface;
 use Psr\Log\LoggerInterface;
+use Magento\Sales\Model\ResourceModel\Order\Shipment\CollectionFactory as ShipmentCollectionFactory;
 
 /**
  * Sends the "Withdrawal submission emails" transactional email to the customer
@@ -45,13 +46,15 @@ class WithdrawalSubmissionEmailSender
      * @param ScopeConfigInterface $scopeConfig
      * @param WithdrawalHelper $withdrawalHelper
      * @param LoggerInterface $logger
+     * @param ShipmentCollectionFactory $shipmentCollectionFactory
      */
     public function __construct(
         private readonly TransportBuilder $transportBuilder,
         private readonly StateInterface $inlineTranslation,
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly WithdrawalHelper $withdrawalHelper,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private ShipmentCollectionFactory $shipmentCollectionFactory
     ) {
     }
 
@@ -60,9 +63,10 @@ class WithdrawalSubmissionEmailSender
      *
      * @param Order $order
      * @param integer $scenario
+     * @param array $shippedItems
      * @return boolean
      */
-    public function send(Order $order, int $scenario = 0): bool
+    public function send(Order $order, int $scenario = 0, $shippedItems = []): bool
     {
         $storeId = (int)$order->getStoreId();
 
@@ -94,6 +98,10 @@ class WithdrawalSubmissionEmailSender
             'customer_name' => $order->getCustomerName(),
             'order_increment_id' => $order->getIncrementId(),
             'order_date' => $order->getCreatedAt(),
+            'sent_to_e1' => ($this->isSentToE1($scenario) && empty($shippedItems)),
+            'not_send_to_e1' => !$this->isSentToE1($scenario),
+            'is_delivered' => ($this->areShippedItemsDelivered($order, $shippedItems) && !empty($shippedItems)),
+            'not_delivered' => (!$this->areShippedItemsDelivered($order, $shippedItems) && !empty($shippedItems)),
             'support_mail' => $this->scopeConfig->getValue(
                 'trans_email/ident_support/email',
                 ScopeInterface::SCOPE_STORE,
@@ -147,6 +155,87 @@ class WithdrawalSubmissionEmailSender
         }
 
         return true;
+    }
+
+    /**
+     * Check if shipped Items are delivered
+     *
+     * @param Order $order
+     * @param array $shippedItems
+     * @return boolean
+     */
+    private function areShippedItemsDelivered(Order $order, array $shippedItems) :bool
+    {
+        if (empty($shippedItems)) {
+            return false;
+        }
+
+        $shipmentOrderItemIds = array_column($shippedItems, 'order_item_id');
+
+        $shipmentCollection = $this->shipmentCollectionFactory->create()->addFieldToFilter('order_id', $order->getEntityId());
+
+        if ($shipmentCollection->getSize() === 0) {
+            $this->logger->info(sprintf(
+                'CheckShipmentFlag: No shipments found for order #%s (Order ID: %d)',
+                $order->getIncrementId(),
+                $order->getEntityId()
+            ));
+        }
+            // Track which order item IDs have been verified with ship_flag = 1
+            $flaggedOrderItemIds = [];
+
+            foreach ($shipmentCollection as $shipment) {
+                foreach ($shipment->getAllItems() as $shipmentItem) {
+
+                    $orderItemId = (int) $shipmentItem->getOrderItemId();
+
+                    // Only check items that are in the order
+                    if (!in_array($orderItemId, $shipmentOrderItemIds)) {
+                        continue;
+                    }
+
+                    $this->logger->info(sprintf(
+                        'CheckShipmentFlag: Shipment #%s Item (order_item_id: %d) ship_flag = %s',
+                        $shipment->getIncrementId(),
+                        $orderItemId,
+                        $shipmentItem->getShipFlag()
+                    ));
+
+                    if ((int) $shipment->getData('delivery_send_email') !== 1) {
+                        return false;
+                    }
+
+                    $flaggedOrderItemIds[] = $orderItemId;
+                }
+            }
+
+            // Ensure every RMA item was actually found and verified in shipments
+            $unverifiedItems = array_diff($shipmentOrderItemIds, $flaggedOrderItemIds);
+
+            if (!empty($unverifiedItems)) {
+                $this->logger->info(sprintf(
+                    'CheckShipmentFlag: RMA #%s has items not found in any shipment: %s',
+                    $rma->getIncrementId(),
+                    implode(', ', $unverifiedItems)
+                ));
+                return false;
+            }
+            return true;
+    }
+
+    /**
+     * Check if order is sent to E1
+     *
+     * @param integer $scenario
+     * @return boolean
+     */
+    public function isSentToE1(int $scenario) :bool
+    {
+        if ($scenario === WithdrawalHelper::SCENARIO_SENT_TO_E1) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

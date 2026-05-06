@@ -34,6 +34,7 @@ use Magento\Rma\Api\RmaRepositoryInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Model\Order\Address\Renderer as AddressRenderer;
 use Magento\Rma\Helper\Data as RmaHelper;
+use Magento\Sales\Model\ResourceModel\Order\Shipment\CollectionFactory as ShipmentCollectionFactory;
 
 /**
  * Sends the "Withdrawal submission emails piano" transactional email to the customer
@@ -42,7 +43,7 @@ use Magento\Rma\Helper\Data as RmaHelper;
 class WithdrawalConfirmationEmailSender
 {
     /**
-     * Undocumented function
+     * Constructor
      *
      * @param TransportBuilder $transportBuilder
      * @param StateInterface $inlineTranslation
@@ -53,6 +54,7 @@ class WithdrawalConfirmationEmailSender
      * @param StoreManagerInterface $storeManager
      * @param AddressRenderer $addressRenderer
      * @param RmaHelper $rmaHelper
+     * @param ShipmentCollectionFactory $shipmentCollectionFactory
      */
     public function __construct(
         private readonly TransportBuilder $transportBuilder,
@@ -63,7 +65,8 @@ class WithdrawalConfirmationEmailSender
         private readonly RmaRepositoryInterface $rmaRepository,
         private readonly StoreManagerInterface $storeManager,
         private readonly AddressRenderer $addressRenderer,
-        private readonly RmaHelper $rmaHelper
+        private readonly RmaHelper $rmaHelper,
+        private ShipmentCollectionFactory $shipmentCollectionFactory
     ) {
     }
 
@@ -104,7 +107,7 @@ class WithdrawalConfirmationEmailSender
         );
         
 
-        $templateVars = $this->getRmaDetails($order, (int)$rmaId, $storeId);
+        $templateVars = $this->getRmaDetails($order, (int)$rmaId, $storeId, $scenario);
 
         $this->inlineTranslation->suspend();
         try {
@@ -205,9 +208,10 @@ class WithdrawalConfirmationEmailSender
      * @param Order $order
      * @param int $rmaId
      * @param int $storeId
+     * @param int $scenario
      * @return array 
      */
-    private function getRmaDetails(Order $order, int $rmaId, int $storeId) :array
+    private function getRmaDetails(Order $order, int $rmaId, int $storeId, int $scenario) :array
     {
         $rmaDetails = [];
 
@@ -228,6 +232,8 @@ class WithdrawalConfirmationEmailSender
                             ],
                 'created_at_formatted_1' => $rma->getCreatedAtFormated(1),
                 'store' => $store,
+                'customer_name' => $order->getCustomerName(),
+                'order_increment_id' => $order->getIncrementId(),
                 'return_address' => $returnAddress,
                 'item_collection' => $rma->getItemsForDisplay(),
                 'formattedShippingAddress' => $this->addressRenderer->format(
@@ -239,9 +245,102 @@ class WithdrawalConfirmationEmailSender
                                 'html'
                             ),
                 'supportEmail' => $store->getConfig('trans_email/ident_support/email'),
-                'storePhone' => $store->getConfig('general/store_information/phone')
+                'storePhone' => $store->getConfig('general/store_information/phone'),
+                'is_delivered' => $this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario),
+                'not_delivered' => !$this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario)
             ];
         }
         return $rmaDetails;
+    }
+
+    /**
+     * Check if all shipment items related to RMA items have ship_flag set to 1
+     *
+     * @param  int $rmaId
+     * @param int $scenario
+     * @return bool
+     */
+    public function areAllRmaItemsDelivered(int $rmaId, int $scenario): bool
+    {
+        if ($scenario === 0) {
+            return false;
+        }
+        $rma = $this->rmaRepository->get($rmaId);
+
+        if (!$rma->getEntityId()) {
+            throw new NoSuchEntityException(
+                __('RMA with ID %1 does not exist.', $rmaId)
+            );
+        }
+
+        // Get order item IDs from RMA items only
+        $rmaOrderItemIds = [];
+        foreach ($rma->getItems() as $rmaItem) {
+            $rmaOrderItemIds[] = (int) $rmaItem->getOrderItemId();
+        }
+
+        if (empty($rmaOrderItemIds)) {
+            $this->logger->info(sprintf(
+                'CheckShipmentFlag: No items found in RMA #%s',
+                $rma->getIncrementId()
+            ));
+            return false;
+        }
+
+        // Load shipments for the order
+        $shipmentCollection = $this->shipmentCollectionFactory->create()
+            ->addFieldToFilter('order_id', $rma->getOrderId());
+
+        if ($shipmentCollection->getSize() === 0) {
+            $this->logger->info(sprintf(
+                'CheckShipmentFlag: No shipments found for RMA #%s (Order ID: %d)',
+                $rma->getIncrementId(),
+                $rma->getOrderId()
+            ));
+            return false;
+        }
+
+        // Track which RMA order item IDs have been verified with ship_flag = 1
+        $flaggedOrderItemIds = [];
+
+        foreach ($shipmentCollection as $shipment) {
+            foreach ($shipment->getAllItems() as $shipmentItem) {
+
+                $orderItemId = (int) $shipmentItem->getOrderItemId();
+
+                // Only check items that are in the RMA
+                if (!in_array($orderItemId, $rmaOrderItemIds)) {
+                    continue;
+                }
+
+                $this->logger->info(sprintf(
+                    'CheckShipmentFlag: Shipment #%s Item (order_item_id: %d) ship_flag = %s',
+                    $shipment->getIncrementId(),
+                    $orderItemId,
+                    $shipmentItem->getShipFlag()
+                ));
+
+                // If this RMA item does not have ship_flag = 1 return false immediately
+                if ((int) $shipment->getData('delivery_send_email') !== 1) {
+                    return false;
+                }
+
+                $flaggedOrderItemIds[] = $orderItemId;
+            }
+        }
+
+        // Ensure every RMA item was actually found and verified in shipments
+        $unverifiedItems = array_diff($rmaOrderItemIds, $flaggedOrderItemIds);
+
+        if (!empty($unverifiedItems)) {
+            $this->logger->info(sprintf(
+                'CheckShipmentFlag: RMA #%s has items not found in any shipment: %s',
+                $rma->getIncrementId(),
+                implode(', ', $unverifiedItems)
+            ));
+            return false;
+        }
+
+        return true;
     }
 }

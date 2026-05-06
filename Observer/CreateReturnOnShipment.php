@@ -62,6 +62,7 @@ class CreateReturnOnShipment implements ObserverInterface
 
         if ($this->createReturnFlag($order)) {
             $shipment->setData(WithdrawalHelper::WITHDRAWAL_FLAG, WithdrawalHelper::CREATE_RETURN);
+            $shipment->setQtyShipped($shipment->getQtyShipped());
             $this->shipmentRepository->save($shipment);
         }
 

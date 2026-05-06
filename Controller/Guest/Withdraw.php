@@ -224,7 +224,7 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
-                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_SENT_TO_E1, $shippedItems);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
                     $this->_redirect('sales/order/history');
@@ -355,7 +355,7 @@ class Withdraw extends Action implements HttpPostActionInterface
 
                 $order->setItems($itemsToSave);
                 $this->orderRepository->save($order);
-                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
+                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId(), WithdrawalHelper::SCENARIO_SENT_TO_E1);
 
                 $this->messageManager->addSuccessMessage(
                     __(
@@ -439,5 +439,24 @@ class Withdraw extends Action implements HttpPostActionInterface
             return true;
         }
         return false;
+    }
+
+    /**
+     * Get the list of items that are not shipped yet for orders that are sent to E1 but not shipped, so that the withdrawal can be processed for those items and excluded for items that are already shipped. An order is considered not shipped if all items have their shipped quantity equal to zero.
+     * @param array $post
+     * @param array $shippedItems
+     * @return array
+     */
+    private function getRemainingItemToWithdraw(array $items, array $shippedItems): array
+    {
+        $matchingIds = array_column($shippedItems, 'order_item_id');
+
+        $result = array_filter($items, function($item) use ($matchingIds) {
+            return in_array($item['order_item_id'], $matchingIds);
+        });
+
+        // Re-index if needed
+        $result = array_values($result);
+        return $result;
     }
 }

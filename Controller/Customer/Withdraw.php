@@ -218,7 +218,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
                 $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
-                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
+                $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_SENT_TO_E1, $shippedItems);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
                     $this->_redirect('sales/order/history');
@@ -348,7 +348,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
 
                 $order->setItems($itemsToSave);
                 $this->orderRepository->save($order);
-                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId());
+                $this->withdrawalConfirmationEmailSender->send($order, (int)$rmaObject->getEntityId(), WithdrawalHelper::SCENARIO_SENT_TO_E1);
 
                 $this->messageManager->addSuccessMessage(
                     __(
@@ -356,7 +356,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                         $rmaObject->getIncrementId()
                     )
                 );
-                return $this->resultRedirectFactory->create()->setPath('rma/returns/history');
+                return $this->resultRedirectFactory->create()->setPath('withdrawal/customer/history');
             } catch (Throwable $e) {
                 $this->messageManager->addErrorMessage(
                     __('We can\'t create a return right now. Please try again later.')
