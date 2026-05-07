@@ -19,7 +19,7 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-namespace CasioEMEA\Withdrawal\Controller\Customer;
+namespace CasioEMEA\Withdrawal\Controller\Withdrawal;
 
 use Magento\Framework\App\Action\HttpGetActionInterface;
 

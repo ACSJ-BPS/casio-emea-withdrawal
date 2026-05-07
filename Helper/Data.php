@@ -160,9 +160,9 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function getWithdrawCreateUrl(Order $order) : string
     {
         if ($this->customerSession->isLoggedIn()) {
-            return $this->_getUrl('withdrawal/customer/create', ['order_id' => $order->getId()]);
+            return $this->_getUrl('sales/withdrawal/customer', ['order_id' => $order->getId()]);
         } else {
-            return $this->_getUrl('withdrawal/guest/create', ['order_id' => $order->getId()]);
+            return $this->_getUrl('sales/withdrawal/guest', ['order_id' => $order->getId()]);
         }
     }
 
@@ -252,9 +252,9 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function getWithdrawalSubmissionUrl(Order $order): string
     {
         if ($this->customerSession->isLoggedIn()) {
-            return $this->_getUrl('withdrawal/customer/withdraw/', ['order_id' => $order->getId()]);
+            return $this->_getUrl('sales/withdrawal/customerwithdraw/', ['order_id' => $order->getId()]);
         } else {
-            return $this->_getUrl('withdrawal/guest/withdraw/', ['order_id' => $order->getId()]);
+            return $this->_getUrl('sales/withdrawal/guestwithdraw/', ['order_id' => $order->getId()]);
         }
     }
     

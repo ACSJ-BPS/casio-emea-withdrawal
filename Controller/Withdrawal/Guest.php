@@ -19,7 +19,7 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-namespace CasioEMEA\Withdrawal\Controller\Guest;
+namespace CasioEMEA\Withdrawal\Controller\Withdrawal;
 
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawConfig;
 use Magento\Framework\App\Action\HttpGetActionInterface;
@@ -28,7 +28,7 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Helper\Context as HelperContext;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Customer\Model\Session as CustomerSession;
-use Magento\Rma\Controller\Guest;
+use Magento\Rma\Controller\Guest as BaseGuest;
 use Magento\Framework\Registry as CoreRegistry;
 use Magento\Rma\Helper\Data as RmaHelper;
 use Magento\Sales\Helper\Guest as SalesGuestHelper;
@@ -36,7 +36,7 @@ use Magento\Framework\View\Result\PageFactory;
 use Magento\Framework\View\Result\LayoutFactory;
 use Magento\Framework\Controller\Result\ForwardFactory;
 
-class Create extends Guest implements HttpGetActionInterface
+class Guest extends BaseGuest implements HttpGetActionInterface
 {
     /**
      * Constructor for the Create controller

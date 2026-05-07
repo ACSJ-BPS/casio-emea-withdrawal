@@ -19,7 +19,7 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-namespace CasioEMEA\Withdrawal\Controller\Customer;
+namespace CasioEMEA\Withdrawal\Controller\Withdrawal;
 
 use Magento\Rma\Controller\Returns\Returns;
 
@@ -56,7 +56,7 @@ use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
  *
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
-class Withdraw extends Returns implements HttpPostActionInterface
+class Customerwithdraw extends Returns implements HttpPostActionInterface
 {
     /**
      * @var RmaFactory
@@ -356,7 +356,7 @@ class Withdraw extends Returns implements HttpPostActionInterface
                         $rmaObject->getIncrementId()
                     )
                 );
-                return $this->resultRedirectFactory->create()->setPath('withdrawal/customer/history');
+                return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/history');
             } catch (Throwable $e) {
                 $this->messageManager->addErrorMessage(
                     __('We can\'t create a return right now. Please try again later.')

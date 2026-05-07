@@ -19,7 +19,7 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-namespace CasioEMEA\Withdrawal\Controller\Customer;
+namespace CasioEMEA\Withdrawal\Controller\Withdrawal;
 
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawConfig;
 use Magento\Framework\App\Action\HttpGetActionInterface;
@@ -32,7 +32,7 @@ use Magento\Rma\Controller\Returns as RmaReturns;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Framework\Registry as CoreRegistry;
 
-class Create extends RmaReturns implements HttpGetActionInterface
+class Customer extends RmaReturns implements HttpGetActionInterface
 {
     
     /**

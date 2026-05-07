@@ -19,7 +19,7 @@
  * requires the prior written permission from Adobe.
  ******************************************************************************/
 
-namespace CasioEMEA\Withdrawal\Controller\Guest;
+namespace CasioEMEA\Withdrawal\Controller\Withdrawal;
 
 use Magento\Rma\Controller\Returns\Returns;
 
@@ -57,7 +57,7 @@ use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
  *
  * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
-class Withdraw extends Action implements HttpPostActionInterface
+class Guestwithdraw extends Action implements HttpPostActionInterface
 {
     /**
      * @var RmaFactory
@@ -210,7 +210,7 @@ class Withdraw extends Action implements HttpPostActionInterface
             } catch (\Exception $e) {
                 $this->logger->critical('Error creating credit memo for withdrawal: ' . $e->getMessage());
                 $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/guest/view');
                 return;
             }
         }
@@ -227,13 +227,13 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_SENT_TO_E1, $shippedItems);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
-                    $this->_redirect('sales/order/history');
+                    $this->_redirect('sales/guest/view');
                     return;
                 }
             } catch (\Exception $e) {
                 $this->logger->critical('Error setting withdrawal flag for order sent to E1 but not shipped: ' . $e->getMessage());
                 $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/guest/view');
                 return;
             }
         }
@@ -316,7 +316,7 @@ class Withdraw extends Action implements HttpPostActionInterface
                 $this->messageManager->addErrorMessage(
                     __($error)
                 );
-                return $this->resultRedirectFactory->create()->setPath('*/*/create', ['order_id' => $orderId]);
+                return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/guest', ['order_id' => $orderId]);
             }
 
             try {
@@ -370,10 +370,10 @@ class Withdraw extends Action implements HttpPostActionInterface
                 );
 
                 $this->logger->critical($e->getMessage());
-                return $this->resultRedirectFactory->create()->setPath('*/*/create', ['order_id' => $orderId]);
+                return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/guest', ['order_id' => $orderId]);
             }
         } else {
-            return $this->resultRedirectFactory->create()->setPath('*/*/create', ['order_id' => $orderId]);
+            return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/guest', ['order_id' => $orderId]);
         }
     }
 
