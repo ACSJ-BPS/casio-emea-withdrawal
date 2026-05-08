@@ -196,7 +196,8 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
-                $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $fullWithdrawalReasonOther = isset($post['full_withdrawal_reason_other']) ? $post['full_withdrawal_reason_other'] : "";
+                $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason, $fullWithdrawalReasonOther);
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
                 $this->_redirect('sales/order/history');
@@ -217,7 +218,8 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
                 $fullWithdrawalReason =  (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0";
                 $withdrawalItems = isset($post['items']) ? $post['items'] : [];
-                $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason);
+                $fullWithdrawalReasonOther = isset($post['full_withdrawal_reason_other']) ? $post['full_withdrawal_reason_other'] : "";
+                $shippedItems = $this->setWithdrawalFlagService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason, $fullWithdrawalReasonOther);
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_SENT_TO_E1, $shippedItems);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
@@ -254,12 +256,23 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                     if ($orderItem->isDummy()) {
                         continue;
                     }
-                    $itemsToReturn[] = [
-                        'order_item_id'      => $orderItem->getId(),
-                        'qty_requested'      => (string)$orderItem->getQtyToRefund(),
-                        'condition'  => "0",
-                        'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0"
-                    ];
+
+                    if ((isset($post["full_withdrawal_reason_other"]) && $post['full_withdrawal_reason_other'])) {
+                            $itemsToReturn[] = [
+                                'order_item_id'      => $orderItem->getId(),
+                                'qty_requested'      => (string)$orderItem->getQtyToRefund(),
+                                'condition'  => "0",
+                                'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0",
+                                'reason_other' => $post['full_withdrawal_reason_other']
+                            ];
+                    } else {
+                            $itemsToReturn[] = [
+                                'order_item_id'      => $orderItem->getId(),
+                                'qty_requested'      => (string)$orderItem->getQtyToRefund(),
+                                'condition'  => "0",
+                                'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0"
+                            ];
+                    }
                 }
                 $post['items'] = $itemsToReturn;
                 $orderStatusTobeSet = $order->getStatus();

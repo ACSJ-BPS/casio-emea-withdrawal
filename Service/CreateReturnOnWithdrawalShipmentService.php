@@ -241,6 +241,7 @@ class CreateReturnOnWithdrawalShipmentService
 
             // Get reason code from order item, default to 1 (Not Received) if not set
             $reasonCode = (string)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY);
+            $reasonOther = $orderItem->getData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER);
             if (empty($reasonCode)) {
                 $reasonCode = '1'; // Default reason code
             }
@@ -250,7 +251,7 @@ class CreateReturnOnWithdrawalShipmentService
                 'qty_requested' => (string)$qty,
                 'condition'     => "0", // Valid condition code (0 = Used)
                 'reason'        => $reasonCode,
-                'reason_other'  => '' // Add reason_other field for custom reason
+                'reason_other'  => $reasonOther // Add reason_other field for custom reason
             ];
         }
 

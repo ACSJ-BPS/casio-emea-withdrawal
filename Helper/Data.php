@@ -31,6 +31,7 @@ use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 use Magento\Store\Model\ScopeInterface;
 use PSpell\Config as PSpellConfig;
 use CasioEMEA\E1Integration\Model\Config as BaseConfig;
+use Magento\Sales\Model\ResourceModel\Order\Shipment\CollectionFactory as ShipmentCollectionFactory;
 
 class Data extends \Magento\Framework\App\Helper\AbstractHelper
 {
@@ -67,6 +68,8 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public const WITHDRAWAL_ITEM_KEY = 'withdrawal_item_status';
 
     public const WITHDRAWAL_ITEM_REASON_KEY = 'withdrawal_item_reason';
+
+    public const WITHDRAWAL_ITEM_REASON_OTHER = "withdrawal_item_reason_other";
 
     public const WITHDRAWAL_QTY_KEY = 'withdrawal_qty';
 
@@ -127,13 +130,15 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * @param RmaReasonList $rmaReasonList
      * @param TimezoneInterface $timezone
      * @param BaseConfig $baseConfig
+     * @param ShipmentCollectionFactory $shipmentCollectionFactory
      */
     public function __construct(
         Context $context,
         private readonly CustomerSession $customerSession,
         private readonly RmaReasonList $rmaReasonList,
         private readonly TimezoneInterface $timezone,
-        private readonly BaseConfig $baseConfig
+        private readonly BaseConfig $baseConfig,
+        private readonly ShipmentCollectionFactory $shipmentCollectionFactory
     ) {
         parent::__construct($context);
     }
@@ -425,5 +430,25 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
             $storeId
         );
+    }
+
+    /**
+     * Check if order is completely delivered
+     *
+     * @param Order $order
+     * @return boolean
+     */
+    public function isOrderNotDelivered(Order $order) :bool
+    {
+        $shipmentCollection = $this->shipmentCollectionFactory->create()->addFieldToFilter('order_id', $order->getEntityId());
+        if ($shipmentCollection->getSize() === 0) {
+            return true;
+        }
+        foreach ($shipmentCollection as $shipment) {
+            if ((int) $shipment->getData('delivery_send_email') === 1) {
+                return false;
+            }
+        }
+        return true;
     }
 }

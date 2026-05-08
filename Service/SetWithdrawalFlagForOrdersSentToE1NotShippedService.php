@@ -56,11 +56,14 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
      * @return array
      * @throws LocalizedException
      */
-    public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0"): array
+    public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0", $fullWithdrawalReasonOther = ""): array
     {
         $excludedItems = [];
         $itemsToSave = [];
         if ($fullOrderWithdrawal) {
+            if ($fullWithdrawalReason === "0" && $fullWithdrawalReasonOther === "") {
+                $fullWithdrawalReasonOther = "Withdrawn";
+            }
             foreach ($order->getAllItems() as $orderItem) {
                 if ($orderItem->isDummy()) {
                     continue;
@@ -78,11 +81,12 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_WITHDRAWN_BEFORE_SHIPMENT);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$orderItem->getQtyOrdered());
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$fullWithdrawalReason);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $fullWithdrawalReasonOther);
                 $itemsToSave[] = $orderItem;
             }
             $orderStatusTobeSet = $order->getStatus();
             $fullWithdrawalReasonText = $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
-            $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText.'. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
+            $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText.' The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
             $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
         } else {
             $totalQtyOrdered = 0;
@@ -117,6 +121,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, $itemWithdrawanStatus);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItem['reason_other']);
 
                 $itemsToSave[] = $orderItem;
             }

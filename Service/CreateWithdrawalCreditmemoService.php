@@ -67,7 +67,7 @@ class CreateWithdrawalCreditmemoService
      * @return array
      * @throws LocalizedException
      */
-    public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0"): array
+    public function execute(Order $order, bool $fullOrderWithdrawal = false, array $withdrawalItems = [], string $fullWithdrawalReason = "0", $fullWithdrawalReasonOther = ""): array
     {
         if (!$order->canCreditmemo()) {
             throw new \Magento\Framework\Exception\LocalizedException(
@@ -110,10 +110,11 @@ class CreateWithdrawalCreditmemoService
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$fullWithdrawalReason);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$orderItem->getQtyOrdered());
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $fullWithdrawalReasonOther);
                 $this->orderItemRepository->save($orderItem);
             }
             $orderStatusTobeSet = $this->withdrawalHelper::WITHDRAWAL_STATUS;
-            $fullWithdrawalReasonText = $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
+            $fullWithdrawalReasonText = $fullWithdrawalReasonOther ? $fullWithdrawalReasonOther : $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
             $orderComment = 'This Order was fully withdrawn by the customer.' . $fullWithdrawalReasonText . '.';
             $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
             
@@ -172,6 +173,7 @@ class CreateWithdrawalCreditmemoService
                 }
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItem['reason_other']);
                 $this->orderItemRepository->save($orderItem);
             }
             $orderComment = 'This Order was partially withdrawn by the customer.';

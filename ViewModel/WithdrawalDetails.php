@@ -156,4 +156,15 @@ class WithdrawalDetails implements ArgumentInterface
     {
         return $this->withdrawalHelper->getRmaReasonOptions();  
     }
+
+    /**
+     * Disable reasons dropdown
+     *
+     * @param Order $order
+     * @return boolean
+     */
+    public function disableFullSubmissionReasonDropdown(Order $order) :bool
+    {
+        return ($this->withdrawalHelper->orderSentToE1($order) && $this->withdrawalHelper->isOrderNotDelivered($order));
+    }
 }

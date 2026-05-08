@@ -27,6 +27,7 @@
         <column xsi:type="int" name="withdrawal_item_status" default="0" padding="11" unsigned="false" nullable="true" comment="Withdrawal Item Status" />
         <column xsi:type="int" name="withdrawal_qty" default="0" padding="11" unsigned="false" nullable="true" comment="Withdrawal Quantity" />
         <column xsi:type="int" name="withdrawal_item_reason" default="0" padding="11" unsigned="false" nullable="true" comment="Withdrawal Item Reason" />
+        <column xsi:type="varchar" name="withdrawal_item_reason_other" length="255" nullable="true" default="" comment="Withdrawal Item Reason Other"/>
     </table>
     <table name="sales_shipment">
         <column xsi:type="int" name="withdrawal_flag" default="0" padding="11" unsigned="false" nullable="true" comment="Withdrawal Flag for Creating Returns" />
