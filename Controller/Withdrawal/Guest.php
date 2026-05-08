@@ -47,6 +47,7 @@ class Guest extends BaseGuest implements HttpGetActionInterface
      * @param PageFactory $resultPageFactory
      * @param LayoutFactory $resultLayoutFactory
      * @param ForwardFactory $resultForwardFactory
+     * @param WithdrawConfig $withdrawHelper
      */
     public function __construct(
         Context $context,
@@ -56,6 +57,7 @@ class Guest extends BaseGuest implements HttpGetActionInterface
         PageFactory $resultPageFactory,
         LayoutFactory $resultLayoutFactory,
         ForwardFactory $resultForwardFactory,
+        private readonly WithdrawConfig $withdrawHelper,
         private readonly ScopeConfigInterface $scopeConfig
     ) {
         parent::__construct($context, $coreRegistry, $rmaHelper, $salesGuestHelper, $resultPageFactory, $resultLayoutFactory, $resultForwardFactory);
@@ -68,8 +70,8 @@ class Guest extends BaseGuest implements HttpGetActionInterface
      */
     public function execute()
     {
-        if (!$this->scopeConfig->isSetFlag(WithdrawConfig::XML_PATH_WITHDRAWAL_ENABLED)) {
-            return $this->resultRedirectFactory->create()->setPath('sales/order/history');
+        if (!$this->withdrawHelper->isEnabled()) {
+            return $this->resultRedirectFactory->create()->setPath('sales/guest/view');
         }
 
         $result = $this->salesGuestHelper->loadValidOrder($this->_request);
@@ -77,10 +79,13 @@ class Guest extends BaseGuest implements HttpGetActionInterface
             return $result;
         }
         $order = $this->_coreRegistry->registry('current_order');
+        
+        if (!$this->withdrawHelper->canWithdrawOrder($order)) {
+            $this->_redirect('sales/guest/view');
+            return;
+        }
+
         $orderId = $order->getId();
-        // if (!$this->_loadOrderItems($orderId)) {
-        //     return $this->resultRedirectFactory->create()->setPath('sales/order/history');
-        // }
 
         $resultPage = $this->resultPageFactory->create();
         $resultPage->getConfig()->getTitle()->set(__('Withdrawal Form'));

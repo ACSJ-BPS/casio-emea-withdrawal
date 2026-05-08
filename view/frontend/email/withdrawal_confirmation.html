@@ -63,8 +63,7 @@
                 {{trans "As soon as the parcel arrives, please do not refuse delivery; instead, please return the parcel to us using the return instructions below."}}
             </p>
             <p>
-                {{trans "You will shortly receive an email from our delivery partner UPS containing a free return label. This will contain a mobile barcode that you can use directly on your smartphone to drop off your return parcel at a UPS Access Point. Alternatively, you can
-print out the label and attach it to your parcel."}}
+                {{trans "You will shortly receive an email from our delivery partner UPS containing a free return label. This will contain a mobile barcode that you can use directly on your smartphone to drop off your return parcel at a UPS Access Point. Alternatively, you can print out the label and attach it to your parcel."}}
             </p>
             <p>
                 {{trans 'You can easily find your nearest UPS Access Point <a href="%drop_url">here</a>.' drop_url=$drop_url |raw}}
@@ -110,7 +109,8 @@ print out the label and attach it to your parcel."}}
 
             {{layout handle="magento_rma_email_rma_items" rma_id=$rma_id}}
             <p>
-                {{trans "If you have any questions regarding your cancellation or return, we are always here to help. Click [here] to find out more or  email us at shop_de@casio.de. We’re happy to help!"}}
+                {{trans "If you have any questions regarding your cancellation or return, we are always here to help."}}
+                {{trans "Click <a href="%link">here</a> to find out more or  email us at shop_de@casio.de. We’re happy to help!" link=$link |raw}}}
             </p>
         </td>
     </tr>

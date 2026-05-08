@@ -239,7 +239,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
         }
 
         if (!$this->rmaHelper->canCreateRma($orderId)) {
-            return $this->resultRedirectFactory->create()->setPath('withdrawal/customer/create', ['order_id' => $orderId]);
+            return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/guest', ['order_id' => $orderId]);
         }
 
         // Validate input and create RMA

@@ -298,7 +298,8 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT)
-        && $this->isWithinReturnWindow($order);
+        && $this->isWithinReturnWindow($order)
+        && $order->getState() !== Order::STATE_CANCELED;
     }
 
     /**

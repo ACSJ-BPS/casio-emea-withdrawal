@@ -42,6 +42,7 @@ class Customer extends RmaReturns implements HttpGetActionInterface
      * @param CustomerSession $customerSession
      * @param ScopeConfigInterface $scopeConfig
      * @param OrderRepositoryInterface $orderRepository
+     * @param WithdrawConfig $withdrawHelper
      */
     public function __construct(
         Context $context,
@@ -49,7 +50,8 @@ class Customer extends RmaReturns implements HttpGetActionInterface
         CoreRegistry $coreRegistry,
         private readonly CustomerSession $customerSession,
         private readonly ScopeConfigInterface $scopeConfig,
-        private readonly OrderRepositoryInterface $orderRepository
+        private readonly OrderRepositoryInterface $orderRepository,
+        private readonly WithdrawConfig $withdrawHelper
     ) {
         parent::__construct($context, $coreRegistry);
     }
@@ -67,7 +69,7 @@ class Customer extends RmaReturns implements HttpGetActionInterface
             return;
         }
 
-        if (!$this->scopeConfig->isSetFlag(WithdrawConfig::XML_PATH_WITHDRAWAL_ENABLED)) {
+        if (!$this->withdrawHelper->isEnabled()) {
             $this->_redirect('sales/order/history');
             return;
         }
@@ -79,6 +81,11 @@ class Customer extends RmaReturns implements HttpGetActionInterface
 
         /** @var \Magento\Sales\Api\Data\OrderInterface $order */
         $order = $this->orderRepository->get($orderId);
+
+        if (!$this->withdrawHelper->canWithdrawOrder($order)) {
+            $this->_redirect('sales/order/history');
+            return;
+        }
 
         if (!$this->_canViewOrder($order)) {
             $this->_redirect('sales/order/history');
