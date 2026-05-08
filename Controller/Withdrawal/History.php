@@ -38,7 +38,7 @@ class History extends \Magento\Rma\Controller\Returns implements HttpGetActionIn
         }
 
         $this->_view->loadLayout();
-        $this->_view->getPage()->getConfig()->getTitle()->set(__('My Withdrawals'));
+        $this->_view->getPage()->getConfig()->getTitle()->set(__('Withdrawals / Returns'));
 
         if ($block = $this->_view->getLayout()->getBlock('customer.account.link.back')) {
             $block->setRefererUrl($this->_redirect->getRefererUrl());

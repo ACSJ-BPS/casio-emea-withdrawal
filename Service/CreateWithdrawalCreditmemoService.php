@@ -188,6 +188,7 @@ class CreateWithdrawalCreditmemoService
 
         $creditmemo->setInvoice($invoice);
         $creditmemo->setAutomaticallyCreated(true);
+        $creditmemo->setSendEmail(true);
         $creditmemo->addComment(__('Credit memo created as part of the customer withdrawal process.'), false, false);
 
         // false = online refund
