@@ -36,6 +36,7 @@
 "var rma_id":"Rma Id",
 "var is_delivered": "Is Delivered",
 "var not_delivered": "Not Delivered"
+"var drop_url":"Drop URL",
 "template config_path=\"design\/email\/footer_template\"":"Email Footer Template"
 } @-->
 {{template config_path="design/email/header_template"}}
@@ -66,7 +67,7 @@
 print out the label and attach it to your parcel."}}
             </p>
             <p>
-                {{trans "You can easily find your nearest UPS Access Point here: [Link to UPS Access Point Finder]."}}
+                {{trans 'You can easily find your nearest UPS Access Point <a href="%drop_url">here</a>.' drop_url=$drop_url |raw}}
             </p>
             {{/depend}}
             {{depend is_delivered}}
@@ -77,7 +78,7 @@ print out the label and attach it to your parcel."}}
                 {{trans "For your return, we are providing you with a free UPS return label, which you will receive shortly by email from our delivery partner. You can either use the label as a mobile barcode directly on your smartphone or print it out and attach it to your parcel."}}
             </p>
             <p>
-                {{trans "You can easily find your nearest UPS Access Point here: [Link to UPS Access Point Finder]."}}
+                {{trans 'You can easily find your nearest UPS Access Point <a href="%drop_url">here</a>.' drop_url=$drop_url |raw}}
             </p>
             {{/depend}}
             <p>
@@ -109,7 +110,7 @@ print out the label and attach it to your parcel."}}
 
             {{layout handle="magento_rma_email_rma_items" rma_id=$rma_id}}
             <p>
-                {{trans " If you have any questions regarding your cancellation or return, we are always here to help. Click [here] to find out more or  email us at shop_de@casio.de. We’re happy to help!"}}
+                {{trans "If you have any questions regarding your cancellation or return, we are always here to help. Click [here] to find out more or  email us at shop_de@casio.de. We’re happy to help!"}}
             </p>
         </td>
     </tr>

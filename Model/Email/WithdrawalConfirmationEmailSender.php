@@ -247,7 +247,8 @@ class WithdrawalConfirmationEmailSender
                 'supportEmail' => $store->getConfig('trans_email/ident_support/email'),
                 'storePhone' => $store->getConfig('general/store_information/phone'),
                 'is_delivered' => $this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario),
-                'not_delivered' => !$this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario)
+                'not_delivered' => !$this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario),
+                'drop_url' => $store->getConfig('carriers/ups/drop_off_url')
             ];
         }
         return $rmaDetails;
