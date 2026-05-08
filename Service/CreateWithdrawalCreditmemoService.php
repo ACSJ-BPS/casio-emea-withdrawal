@@ -32,6 +32,8 @@ use Magento\Sales\Model\Service\CreditmemoService;
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Api\OrderItemRepositoryInterface;
+use Magento\Framework\Filter\FilterManager;
+use Magento\Sales\Model\Order\Email\Sender\CreditmemoSender;
 
 class CreateWithdrawalCreditmemoService
 {
@@ -42,13 +44,17 @@ class CreateWithdrawalCreditmemoService
      * @param WithdrawalHelper $withdrawalHelper
      * @param OrderRepositoryInterface $orderRepository
      * @param OrderItemRepositoryInterface $orderItemRepository
+     * @param FilterManager $filterManager
+     * @param CreditmemoSender $creditmemoSender
      */
     public function __construct(
         private readonly CreditmemoFactory $creditmemoFactory,
         private readonly CreditmemoService $creditmemoService,
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly OrderRepositoryInterface $orderRepository,
-        private readonly OrderItemRepositoryInterface $orderItemRepository
+        private readonly OrderItemRepositoryInterface $orderItemRepository,
+        private readonly FilterManager $filterManager,
+        private readonly CreditmemoSender $creditmemoSender
     ) {
     }
 
@@ -188,11 +194,11 @@ class CreateWithdrawalCreditmemoService
 
         $creditmemo->setInvoice($invoice);
         $creditmemo->setAutomaticallyCreated(true);
-        $creditmemo->setSendEmail(true);
         $creditmemo->addComment(__('Credit memo created as part of the customer withdrawal process.'), false, false);
 
         // false = online refund
         $this->creditmemoService->refund($creditmemo, false);
+        $this->creditmemoSender->send($creditmemo);
 
         $order->setStatus($orderStatusTobeSet);
         $order->setData('withdrawal_order_status', $withdrawnStatus);
