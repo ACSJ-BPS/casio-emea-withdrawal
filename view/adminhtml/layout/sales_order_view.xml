@@ -18,10 +18,9 @@
   * then your use, modification, or distribution of it
   * requires the prior written permission from Adobe.
   ***************************************************************************-->
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
-	<module name="CasioEMEA_Withdrawal">
-        <sequence>
-            <module name="Casio_CustomWatch"/>
-        </sequence>
-  </module>
-</config>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <update handle="sales_order_item_simple_service_info" />
+    <body>
+        <referenceBlock name="column_qty" template="CasioEMEA_Withdrawal::order/view/items/column/qty.phtml" />
+    </body>
+</page>

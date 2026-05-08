@@ -269,7 +269,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 }
                 $post['items'] = $itemsToReturn;
                 $orderStatusTobeSet = $order->getStatus();
-                $orderComment = 'This Order was fully withdrawn by the customer.';
+                $orderComment = 'Withdrawal request submitted by Customer.';
                 $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
             }
 
@@ -300,7 +300,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                     } else {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
                         $isOrderFullyWithdrawn = false;
-                        $orderComment = 'This Order was partially withdrawn by the customer.';
+                        $orderComment = 'Withdrawal request submitted by Customer.';
                     }
 
                     $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
