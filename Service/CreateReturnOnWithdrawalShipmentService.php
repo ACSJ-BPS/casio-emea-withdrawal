@@ -243,7 +243,7 @@ class CreateReturnOnWithdrawalShipmentService
             $reasonCode = (string)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY);
             $reasonOther = $orderItem->getData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER);
             if (empty($reasonCode)) {
-                $reasonCode = '1'; // Default reason code
+                $reasonCode = '0'; // Default reason code
             }
             
             $rmaItems[] = [

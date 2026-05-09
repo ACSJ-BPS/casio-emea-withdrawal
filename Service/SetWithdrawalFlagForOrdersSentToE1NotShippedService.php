@@ -118,10 +118,14 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                     $isOrderFullyWithdrawn = false;
                 }
 
+                $withdrawalReason = isset($withdrawalItem['reason']) ? $withdrawalItem['reason'] : "0";
+                if ($withdrawalReason === "0") {
+                    $fullWithdrawalReasonOther = "Withdrawn";
+                }
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, $itemWithdrawanStatus);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItem['reason_other']);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalReason);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $fullWithdrawalReasonOther);
 
                 $itemsToSave[] = $orderItem;
             }

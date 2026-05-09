@@ -266,11 +266,15 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                                 'reason_other' => $post['full_withdrawal_reason_other']
                             ];
                     } else {
+                        if ($fullWithdrawalReason === "0" && $fullWithdrawalReasonOther === "") {
+                                $fullWithdrawalReasonOther = "Withdrawn";
+                            }
                             $itemsToReturn[] = [
                                 'order_item_id'      => $orderItem->getId(),
                                 'qty_requested'      => (string)$orderItem->getQtyToRefund(),
                                 'condition'  => "0",
-                                'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0"
+                                'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0",
+                                'reason_other' => $fullWithdrawalReasonOther
                             ];
                     }
                 }
@@ -284,7 +288,7 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
             $post['items'] = !empty($shippedItems) ? $this->getRemainingItemToWithdraw($post['items'], $shippedItems) : $post['items'];
             foreach ($post['items'] as $key => $item) {
                 foreach ($simplefields as $simplefield) {
-                    $paramValue = $item[$simplefield];
+                    $paramValue = isset($item[$simplefield]) ? $item[$simplefield] : "";
                     if (!empty($paramValue)) {
                         $filteredSimValue = $this->filterManager->stripTags($paramValue);
                         if ($paramValue !== $filteredSimValue) {
@@ -295,6 +299,15 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
 
                 $post['items'][$key]['qty_authorized'] = $item['qty_requested'];
                 $post['items'][$key]['status'] = $this->getStatus();
+                if (!isset($item['reason'])) {
+                    $item['reason'] = "0";
+                    $post['items'][$key]['reason'] = "0";
+                    $item['condition'] = "0";
+                    $item['reason_other'] = "Withdrawn";
+                    $post['items'][$key]['reason_other'] = "Withdrawn";
+                    $post['items'][$key]['condition'] = "0";
+                }
+
                 $orderItem = $this->orderItemRepository->get((int)$item['order_item_id']);
                 if ($withdrawnStatus === WithdrawalHelper::ORDER_FULLY_WITHDRAWN) {
                     $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
