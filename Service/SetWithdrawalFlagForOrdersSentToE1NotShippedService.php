@@ -60,6 +60,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
     {
         $excludedItems = [];
         $itemsToSave = [];
+        $isShipped = false;
         if ($fullOrderWithdrawal) {
             if ($fullWithdrawalReason === "0" && $fullWithdrawalReasonOther === "") {
                 $fullWithdrawalReasonOther = "Withdrawn";
@@ -70,6 +71,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 }
 
                 if ((float)$orderItem->getQtyShipped() > 0) {
+                    $isShipped = true;
                     $excludedItems[] = ['order_item_id' => (int)$orderItem->getItemId()];
                     continue;
                 }
@@ -86,11 +88,15 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
             }
             $orderStatusTobeSet = $order->getStatus();
             $fullWithdrawalReasonText = $this->withdrawalHelper->getRmaReasonTextByValue($fullWithdrawalReason);
-            $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText.' The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
+            $orderComment = 'This Order was fully withdrawn by the customer.'.$fullWithdrawalReasonText;
+            if (!$isShipped) {
+                $orderComment .= 'The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
+            }
             $withdrawnStatus = WithdrawalHelper::ORDER_FULLY_WITHDRAWN;
         } else {
             $totalQtyOrdered = 0;
             $isOrderFullyWithdrawn = true;
+            $isShipped = false;
             foreach ($withdrawalItems as $withdrawalItem) {
                 $orderItem = $this->orderItemRepository->get($withdrawalItem['order_item_id']);
                 $qty = $withdrawalItem['qty_requested'];
@@ -101,6 +107,7 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 $totalQtyOrdered += (int)$orderItem->getQtyOrdered();
 
                 if ((float)$orderItem->getQtyShipped() > 0) {
+                    $isShipped = true;
                     $excludedItems[] = $withdrawalItem;
                     continue;
                 }
@@ -130,7 +137,10 @@ class SetWithdrawalFlagForOrdersSentToE1NotShippedService
                 $itemsToSave[] = $orderItem;
             }
             $orderStatusTobeSet = $order->getStatus();
-            $orderComment = 'This Order was partially withdrawn by the customer. The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shiiped.';
+            $orderComment = 'This Order was partially withdrawn by the customer.';
+            if (!$isShipped) {
+                $orderComment .= 'The order was sent to E1 but not shipped, so the withdrawal was processed without creating an RMA. The RMA will be created after Order is shipped.';
+            }
             $withdrawnStatus = $isOrderFullyWithdrawn ? WithdrawalHelper::ORDER_FULLY_WITHDRAWN : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN;
         }
 

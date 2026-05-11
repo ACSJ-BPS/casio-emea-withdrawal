@@ -248,7 +248,16 @@ class WithdrawalConfirmationEmailSender
                 'storePhone' => $store->getConfig('general/store_information/phone'),
                 'is_delivered' => $this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario),
                 'not_delivered' => !$this->areAllRmaItemsDelivered((int)$rma->getId(), $scenario),
-                'drop_url' => $store->getConfig('carriers/ups/drop_off_url')
+                'drop_url' => $this->scopeConfig->getValue(
+                                        'carriers/ups/drop_off_url',
+                                        ScopeInterface::SCOPE_STORE,
+                                        $storeId
+                                    ),
+                'link' => $this->scopeConfig->getValue(
+                                'online_store/guide/faq',
+                                ScopeInterface::SCOPE_STORE,
+                                $storeId
+                            )."#shipping-return/",
             ];
         }
         return $rmaDetails;

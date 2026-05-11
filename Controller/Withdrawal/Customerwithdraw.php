@@ -244,7 +244,7 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
             $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
             $isOrderFullyWithdrawn = true;
             $orderStatusTobeSet = $order->getStatus();
-            $orderComment = 'This Order was fully withdrawn by the customer.';
+            $orderComment = 'Withdrawal request submitted by Customer.';
             
             /**
              * If it's a full order withdrawal, we will set the requested qty for all items to be the remaining refundable qty and set the status to fully withdrawn.
@@ -316,6 +316,7 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 } else {
                     if ((int)$orderItem->getQtyOrdered() === (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']) {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                        $orderComment = 'Withdrawal request submitted by Customer.';
                     } else {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
                         $isOrderFullyWithdrawn = false;
@@ -368,8 +369,7 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $order->setData(WithdrawalHelper::WITHDRAWAL_ORDER_KEY, $withdrawnStatus);
                 $order->addCommentToStatusHistory(
                     $orderComment,
-                    $order->getStatus(),                            
-                    true                                             
+                    $order->getStatus()                                            
                 );
 
                 $order->setItems($itemsToSave);

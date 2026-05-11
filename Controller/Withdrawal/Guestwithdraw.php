@@ -37,6 +37,7 @@ use Psr\Log\LoggerInterface;
 use Magento\Sales\Model\Order;
 use Magento\Rma\Helper\Data;
 use CasioEMEA\Withdrawal\Service\CreateWithdrawalCreditmemoService;
+use CasioEMEA\Withdrawal\Service\SetWithdrawalFlagForOrdersSentToE1NotShippedService;
 use CasioEMEA\Withdrawal\Helper\Data as WithdrawalHelper;
 use Magento\Framework\Filter\FilterManager;
 use Casio\RmaAutomation\Helper\Config as RmaAutomationHelper;
@@ -51,6 +52,7 @@ use CasioEMEA\CabinetPiano\ViewModel\PianoDetails;
 use CasioEMEA\Withdrawal\Model\Email\PianoWithdrawalEmailSender;
 use CasioEMEA\Withdrawal\Model\Email\WithdrawalSubmissionEmailSender;
 use CasioEMEA\Withdrawal\Model\Email\WithdrawalConfirmationEmailSender;
+use Magento\Sales\Api\OrderItemRepositoryInterface;
 
 /**
  * Controller class Withdraw. Contains logic of request, responsible for withdrawal creation
@@ -90,7 +92,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
     private $rmaHelper;
 
     /**
-     * UWithdraw constructor.
+     * Guest Withdraw constructor.
      *
      * @param \Magento\Framework\App\Action\Context $context
      * @param \Magento\Framework\Registry $coreRegistry
@@ -100,6 +102,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
      * @param DateTime $dateTime
      * @param HistoryFactory $statusHistoryFactory
      * @param CreateWithdrawalCreditmemoService $createWithdrawalCreditmemoService
+     * @param SetWithdrawalFlagForOrdersSentToE1NotShippedService $setWithdrawalFlagService
      * @param WithdrawalHelper $withdrawalHelper
      * @param FilterManager $filterManager
      * @param RmaAutomationHelper $rmaAutomationHelper
@@ -112,6 +115,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
      * @param PianoWithdrawalEmailSender $pianoWithdrawalEmailSender
      * @param WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender
      * @param WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender
+     * @param OrderItemRepositoryInterface $orderItemRepository
      * @param Data|null $rmaHelper
      */
     public function __construct(
@@ -123,6 +127,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
         DateTime $dateTime,
         HistoryFactory $statusHistoryFactory,
         private readonly CreateWithdrawalCreditmemoService $createWithdrawalCreditmemoService,
+        private readonly SetWithdrawalFlagForOrdersSentToE1NotShippedService $setWithdrawalFlagService,
         private readonly WithdrawalHelper $withdrawalHelper,
         private readonly FilterManager $filterManager,
         private readonly RmaAutomationHelper $rmaAutomationHelper,
@@ -135,6 +140,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
         private readonly PianoWithdrawalEmailSender $pianoWithdrawalEmailSender,
         private readonly WithdrawalConfirmationEmailSender $withdrawalConfirmationEmailSender,
         private readonly WithdrawalSubmissionEmailSender $withdrawalSubmissionEmailSender,
+        private readonly OrderItemRepositoryInterface $orderItemRepository,
         ?Data $rmaHelper = null
     ) {
         $this->rmaModelFactory = $rmaModelFactory;
@@ -250,14 +256,14 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
             $fullOrderWithdrawal = isset($post['withdrawal_checkbox']) && (int)$post['withdrawal_checkbox'] === 1 ? true : false;
             $isOrderFullyWithdrawn = true;
             $orderStatusTobeSet = $order->getStatus();
-            $orderComment = 'This Order was fully withdrawn by the customer.';
+            $orderComment = 'Withdrawal request submitted by Customer.';
             
             /**
              * If it's a full order withdrawal, we will set the requested qty for all items to be the remaining refundable qty and set the status to fully withdrawn.
              * If it's not a full order withdrawal, we will validate the input qty for each item and set the status to partially withdrawn for items that are being withdrawn. The order will be considered fully
              * withdrawn only if all items are being fully withdrawn, otherwise it will be partially withdrawn. This is to ensure that the order status is consistent with the item statuses and to avoid confusion for the customer and the merchant.
              */
-            if ($fullOrderWithdrawal && empty($shippedItems)) {
+            if ($fullOrderWithdrawal && !empty($shippedItems)) {
                 foreach ($order->getAllItems() as $orderItem) {
                     if ($orderItem->isDummy()) {
                         continue;
@@ -279,7 +285,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                                 'qty_requested'      => (string)$orderItem->getQtyToRefund(),
                                 'condition'  => "0",
                                 'reason'  => (isset($post["withdrawal_reason_full_order"]) && $post['withdrawal_reason_full_order']) ? $post['withdrawal_reason_full_order'] : "0",
-+                               'reason_other' => $fullWithdrawalReasonOther
+                               'reason_other' => $fullWithdrawalReasonOther
                             ];
                     }
                 }
@@ -307,22 +313,25 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 $post['items'][$key]['status'] = $this->getStatus();
                 if (!isset($item['reason'])) {
                     $item['reason'] = "0";
-+                    $post['items'][$key]['reason'] = "0";
-+                    $item['condition'] = "0";
-+                    $item['reason_other'] = "Withdrawn";
-+                    $post['items'][$key]['reason_other'] = "Withdrawn";
-+                    $post['items'][$key]['condition'] = "0";
+                    $post['items'][$key]['reason'] = "0";
+                    $item['condition'] = "0";
+                    $item['reason_other'] = "Withdrawn";
+                    $post['items'][$key]['reason_other'] = "Withdrawn";
+                    $post['items'][$key]['condition'] = "0";
                 }
                 $orderItem = $this->orderItemRepository->get((int)$item['order_item_id']);
                 
                 if ($withdrawnStatus === WithdrawalHelper::ORDER_FULLY_WITHDRAWN) {
                     $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
+                    $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$item['reason']);
                 } else {
                     if ((int)$orderItem->getQtyOrdered() === (int)$orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']) {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_FULLY_WITHDRAWN);
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)($orderItem->getData(WithdrawalHelper::WITHDRAWAL_QTY_KEY) + (int)$item['qty_requested']));
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$item['reason']);
+                        $orderComment = 'Withdrawal request submitted by Customer.';
                     } else {
                         $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
                         $isOrderFullyWithdrawn = false;
@@ -349,10 +358,6 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 /** @var Order $order */
                 $order = $this->orderRepository->get($orderId);
 
-                if (!$this->canViewOrder($order)) {
-                    return $this->redirect('*/*/create', ['order_id' => $orderId]);
-                }
-
                 /** @var Rma $rmaObject */
                 $rmaObject = $this->buildRma($order, $post);
                 if (!$rmaObject->saveRma($post)) {
@@ -375,8 +380,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 $order->setData(WithdrawalHelper::WITHDRAWAL_ORDER_KEY, $withdrawnStatus);
                 $order->addCommentToStatusHistory(
                     $orderComment,
-                    $order->getStatus(),                            
-                    true                                             
+                    $order->getStatus()                                             
                 );
 
                 $order->setItems($itemsToSave);
@@ -450,21 +454,6 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
             $status = null;
         }
         return $status;
-    }
-
-    /**
-     * Check order view availability
-     *
-     * @param Rma|Order $item
-     * @return bool
-     */
-    private function canViewOrder($item): bool
-    {
-        $customerId = $this->customerSession->getId();
-        if ($item->getId() && $customerId && $item->getCustomerId() == $customerId) {
-            return true;
-        }
-        return false;
     }
 
     /**

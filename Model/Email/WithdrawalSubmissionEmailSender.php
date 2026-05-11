@@ -107,6 +107,11 @@ class WithdrawalSubmissionEmailSender
                 ScopeInterface::SCOPE_STORE,
                 $storeId
             ),
+            'link' => $this->scopeConfig->getValue(
+                'online_store/guide/faq',
+                ScopeInterface::SCOPE_STORE,
+                $storeId
+            )."#shipping-return/",
         ];
 
         $this->inlineTranslation->suspend();

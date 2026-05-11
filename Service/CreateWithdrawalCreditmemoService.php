@@ -206,8 +206,7 @@ class CreateWithdrawalCreditmemoService
         $order->setData('withdrawal_order_status', $withdrawnStatus);
         $order->addCommentToStatusHistory(
             $orderComment,
-            $order->getStatus(),                            
-            true                                             
+            $order->getStatus()                              
         );
 
         $this->orderRepository->save($order);
