@@ -299,10 +299,14 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function canWithdrawOrder(Order $order): bool
     {
-        return !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) 
+        // if (!$this->isOrderFullyWithdrawn() && (int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) {
+        //     $order->setData(self::ORDER_FULLY_WITHDRAWN, self::ORDER_PARTIALLY_WITHDRAWN);
+        //     $order->save();
+        // }
+        return ((!((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) 
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED)
-        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT)
+        && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT)) || !$this->isOrderFullyWithdrawn($order))
         && $this->isWithinReturnWindow($order)
         && $order->getState() !== Order::STATE_CANCELED
         && $order->getState() !== Order::STATE_CLOSED;
@@ -446,6 +450,22 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         }
         foreach ($shipmentCollection as $shipment) {
             if ((int) $shipment->getData('delivery_send_email') === 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Check if order is fully withdrawn
+     *
+     * @param Order $order
+     * @return boolean
+     */
+    public function isOrderFullyWithdrawn(Order $order) :bool
+    {
+        foreach ($order->getItems() as $item) {
+            if ((int)$item->getData(self::WITHDRAWAL_QTY_KEY) !== (int)$item->getQtyOrdered()) {
                 return false;
             }
         }
