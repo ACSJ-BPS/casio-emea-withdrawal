@@ -150,11 +150,12 @@ class WithdrawalDetails implements ArgumentInterface
      * Get RMA reason options for the withdrawal form
      * The options are retrieved from the RmaReasonList class which gets them from the E
      * AV attribute options for the 'reason' attribute of RMA entities
+     * @param Order $order
      * @return array
      */
-    public function getRmaReasonOptions(): array
+    public function getRmaReasonOptions(Order $order): array
     {
-        return $this->withdrawalHelper->getRmaReasonOptions();  
+        return $this->withdrawalHelper->getRmaReasonOptions($order);  
     }
 
     /**
@@ -166,5 +167,27 @@ class WithdrawalDetails implements ArgumentInterface
     public function disableFullSubmissionReasonDropdown(Order $order) :bool
     {
         return ($this->withdrawalHelper->orderSentToE1($order) && $this->withdrawalHelper->isOrderNotDelivered($order));
+    }
+
+    /**
+     * Disable reasons dropdown
+     *
+     * @param Order $order
+     * @param Item $item
+     * @return boolean
+     */
+    public function disableItemSubmissionReasonDropdown(Order $order, Item $item) :bool
+    {
+        return ($this->withdrawalHelper->orderSentToE1($order) && $this->withdrawalHelper->isItemNotDelivered($item));
+    }
+
+    /**
+     * Get value
+     *
+     * @return integer
+     */
+    public function getRmaValueByText(): int
+    {
+        return $this->withdrawalHelper->getRmaValueByText();
     }
 }

@@ -341,9 +341,10 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * Get RMA reason options for the withdrawal form
      * The options are retrieved from the RmaReasonList class which gets them from the E
      * AV attribute options for the 'reason' attribute of RMA entities
+     * @param Order $order
      * @return array
      */
-    public function getRmaReasonOptions(): array
+    public function getRmaReasonOptions(Order $order): array
     {
         $rmaReasonOptions = $this->rmaReasonList->toOptionArray();
         if ($options = $this->baseConfig->getReasonRestrictedOptions()) {
@@ -353,6 +354,12 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     unset($rmaReasonOptions[$index]);
                 }
             }
+        }
+
+        if (($this->orderSentToE1($order) && $this->isOrderNotDelivered($order))) {
+            $rmaReasonOptions = array_filter($rmaReasonOptions, function($item) {
+                return (string)$item['label'] === 'Withdrawn';
+            });
         }
         return $rmaReasonOptions;
     }
@@ -373,6 +380,24 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             }
         }
         return '';
+    }
+
+    /**
+     * Get Withdrawn value
+     *
+     * @return integer
+     */
+    public function getRmaValueByText(): int
+    {
+        $withdrawValue = 0;
+        $options = $this->rmaReasonList->toOptionArray();
+        foreach ($options as $option) {
+            if ($option['label'] === 'Withdrawn') {
+                $withdrawValue = (int)$option['value'];
+                break;
+            }
+        }
+        return $withdrawValue;
     }
 
     /**
@@ -457,6 +482,32 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     /**
+     * Check if order is completely delivered
+     *
+     * @param Item $item
+     * @return boolean
+     */
+    public function isItemNotDelivered(Item $item) :bool
+    {
+        $shipmentCollection = $this->shipmentCollectionFactory->create()->addFieldToFilter('order_id', $item->getOrder()->getEntityId());
+        if ($shipmentCollection->getSize() === 0) {
+            return true;
+        }
+        foreach ($shipmentCollection as $shipment) {
+            foreach ($shipment->getAllItems() as $shipmentItem) {
+                if ((int)$shipmentItem->getOrderItemId() !== (int)$item->getEntityId()) {
+                    continue;
+                }
+                if ((int) $shipment->getData('delivery_send_email') === 1) {
+                    return false;
+                }
+            }      
+        }
+        return true;
+    }
+
+
+    /**
      * Check if order is fully withdrawn
      *
      * @param Order $order
@@ -465,7 +516,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function isOrderFullyWithdrawn(Order $order) :bool
     {
         foreach ($order->getItems() as $item) {
-            if ((int)$item->getData(self::WITHDRAWAL_QTY_KEY) !== (int)$item->getQtyOrdered()) {
+            if ((int)$item->getData(self::WITHDRAWAL_QTY_KEY) < (int)$item->getQtyOrdered()) {
                 return false;
             }
         }

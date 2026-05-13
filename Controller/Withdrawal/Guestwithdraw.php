@@ -174,6 +174,18 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
 
         $order = $this->orderRepository->get($orderId);
 
+        if (!$this->withdrawalHelper->isEnabled()) {
+            $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+            $this->_redirect('sales/order/view', ['order_id' => $orderId]);
+            return;
+        }
+
+        if (!$this->withdrawalHelper->canWithdrawOrder($order)) {
+            $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+            $this->_redirect('sales/order/view', ['order_id' => $orderId]);
+            return;
+        }
+
         $isPianoOrder = $this->pianoViewModel->isPianoOrder($order);
         if ($isPianoOrder) {
             try {
@@ -395,9 +407,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 );
                 return $this->resultRedirectFactory->create()->setPath('sales/guest/view');
             } catch (Throwable $e) {
-                $this->messageManager->addErrorMessage(
-                    __('We can\'t create a return right now. Please try again later.')
-                );
+                $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
 
                 $this->logger->critical($e->getMessage());
                 return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/guest', ['order_id' => $orderId]);

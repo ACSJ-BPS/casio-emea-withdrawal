@@ -161,6 +161,19 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
         $post = $this->getRequest()->getPostValue();
 
         $order = $this->orderRepository->get($orderId);
+
+        if (!$this->withdrawalHelper->isEnabled()) {
+            $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+            $this->_redirect('sales/order/view', ['order_id' => $orderId]);
+            return;
+        }
+
+        if (!$this->withdrawalHelper->canWithdrawOrder($order)) {
+            $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
+            $this->_redirect('sales/order/view', ['order_id' => $orderId]);
+            return;
+        }
+
         $isPianoOrder = $this->pianoViewModel->isPianoOrder($order);
         if ($isPianoOrder) {
             try {
@@ -200,12 +213,12 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason, $fullWithdrawalReasonOther);
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/order/view', ['order_id' => $orderId]);
                 return;
             } catch (\Exception $e) {
                 $this->logger->critical('Error creating credit memo for withdrawal: ' . $e->getMessage());
                 $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/order/view', ['order_id' => $orderId]);
                 return;
             }
         }
@@ -223,13 +236,13 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_SENT_TO_E1, $shippedItems);
                 if (empty($shippedItems)) {
                     $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully. The RMA will be created after the order is shipped.', $order->getIncrementId()));
-                    $this->_redirect('sales/order/history');
+                    $this->_redirect('sales/order/view', ['order_id' => $orderId]);
                     return;
                 }
             } catch (\Exception $e) {
                 $this->logger->critical('Error setting withdrawal flag for order sent to E1 but not shipped: ' . $e->getMessage());
                 $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/order/view', ['order_id' => $orderId]);
                 return;
             }
         }
@@ -336,7 +349,7 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 $this->messageManager->addErrorMessage(
                     __($error)
                 );
-                return $this->resultRedirectFactory->create()->setPath('sales/order/history');
+                return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/customer', ['order_id' => $orderId]);
             }
 
             try {
@@ -384,15 +397,13 @@ class Customerwithdraw extends Returns implements HttpPostActionInterface
                 );
                 return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/history');
             } catch (Throwable $e) {
-                $this->messageManager->addErrorMessage(
-                    __('We can\'t create a return right now. Please try again later.')
-                );
+                $this->messageManager->addErrorMessage(__('We can\'t process withdrawal request for this order #%1 right now. Please try again later.', $order->getIncrementId()));
 
                 $this->logger->critical($e->getMessage());
-                return $this->resultRedirectFactory->create()->setPath('sales/order/history');
+                return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/customer', ['order_id' => $orderId]);
             }
         } else {
-            return $this->resultRedirectFactory->create()->setPath('sales/order/history');
+            return $this->resultRedirectFactory->create()->setPath('sales/withdrawal/customer', ['order_id' => $orderId]);
         }
     }
 
