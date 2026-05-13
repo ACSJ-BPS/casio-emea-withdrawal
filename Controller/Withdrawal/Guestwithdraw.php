@@ -311,7 +311,6 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
             $post['items'] = !empty($shippedItems) ? $this->getRemainingItemToWithdraw($post['items'], $shippedItems) : $post['items'];
             foreach ($post['items'] as $key => $item) {
                 foreach ($simplefields as $simplefield) {
-                    $paramValue = $item[$simplefield];
                     $paramValue = isset($item[$simplefield]) ? $item[$simplefield] : "";
                     if (!empty($paramValue)) {
                         $filteredSimValue = $this->filterManager->stripTags($paramValue);
