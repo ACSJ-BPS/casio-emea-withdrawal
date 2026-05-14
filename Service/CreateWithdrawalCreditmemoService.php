@@ -129,7 +129,7 @@ class CreateWithdrawalCreditmemoService
             ];
             foreach ($withdrawalItems as $withdrawalItem) {
                 foreach ($simplefields as $simplefield) {
-                    $paramValue = $withdrawalItem[$simplefield];
+                    $paramValue = isset($item[$simplefield]) ? $item[$simplefield] : "";
                     if (!empty($paramValue)) {
                         $filteredSimValue = $this->filterManager->stripTags($paramValue);
                         if ($paramValue !== $filteredSimValue) {
@@ -171,9 +171,12 @@ class CreateWithdrawalCreditmemoService
                     $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_KEY, WithdrawalHelper::ITEM_PARTIALLY_WITHDRAWN);
                     $isOrderFullyWithdrawn = false;
                 }
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItem['reason']);
+
+                $withdrawalItemReason = isset($withdrawalItem['reason']) ? isset($withdrawalItem['reason']) : "0";
+                $withdrawalItemReasonOther = isset($withdrawalItem['reason_other']) ? isset($withdrawalItem['reason_other']) : "";
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_KEY, (int)$withdrawalItemReason);
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_QTY_KEY, (int)$totalQtyWithdrawnForItem);
-                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItem['reason_other']);
+                $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItemReasonOther);
                 $this->orderItemRepository->save($orderItem);
             }
             $orderComment = 'This Order was partially withdrawn by the customer.';

@@ -224,7 +224,7 @@ class Guestwithdraw extends Action implements HttpPostActionInterface
                 $this->createWithdrawalCreditmemoService->execute($order, $fullOrderWithdrawal, $withdrawalItems, $fullWithdrawalReason, $fullWithdrawalReasonOther);
                 $this->withdrawalSubmissionEmailSender->send($order, WithdrawalHelper::SCENARIO_NOT_SENT_TO_E1);
                 $this->messageManager->addSuccessMessage(__('Your withdrawal request for order #%1 has been submitted successfully.', $order->getIncrementId()));
-                $this->_redirect('sales/order/history');
+                $this->_redirect('sales/guest/view');
                 return;
             } catch (\Exception $e) {
                 $this->logger->critical('Error creating credit memo for withdrawal: ' . $e->getMessage());
