@@ -19,7 +19,10 @@
   * requires the prior written permission from Adobe.
   ***************************************************************************-->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
-    <type name="CasioEMEA\RmaAutomation\Helper\Config">
+  <type name="CasioEMEA\RmaAutomation\Helper\Config">
       <plugin name="CasioEMEA_Withdrawal_disable_shipping_label_email" type="CasioEMEA\Withdrawal\Plugin\RmaAutomation\Helper\ConfigPlugin" sortOrder="10" disabled="false"/>
+  </type>
+  <type name="Magento\Rma\Model\Rma">
+      <plugin name="CasioEMEA_Withdrawal_piano_confirmation_email" type="CasioEMEA\Withdrawal\Plugin\Rma\Model\RmaPlugin" sortOrder="10" disabled="false"/>
   </type>
 </config>

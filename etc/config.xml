@@ -32,6 +32,12 @@
                 <email_template>casio_withdrawal_piano_email_email_template</email_template>
                 <send_email_copy_method>bcc</send_email_copy_method>
             </piano_email>
+            <piano_confirmation>
+                <enable>1</enable>
+                <email_sender>support</email_sender>
+                <email_template>casio_withdrawal_piano_confirmation_email_template</email_template>
+                <send_email_copy_method>bcc</send_email_copy_method>
+            </piano_confirmation>
             <submission_email>
                 <enable>1</enable>
                 <email_sender>support</email_sender>

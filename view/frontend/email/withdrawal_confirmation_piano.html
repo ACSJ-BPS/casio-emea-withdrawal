@@ -1,0 +1,110 @@
+<!--
+/*
+ * ADOBE CONFIDENTIAL
+ * ___________________
+ *
+ * Copyright 2026 Adobe
+ * All Rights Reserved.
+ *
+ * NOTICE: All information contained herein is, and remains
+ * the property of Adobe and its suppliers, if any. The intellectual
+ * and technical concepts contained herein are proprietary to Adobe
+ * and its suppliers and are protected by all applicable intellectual
+ * property laws, including trade secret and copyright laws.
+ * Adobe permits you to use and modify this file
+ * in accordance with the terms of the Adobe license agreement
+ * accompanying it (see LICENSE_ADOBE_PS.txt).
+ * If you have received this file from a source other than Adobe,
+ * then your use, modification, or distribution of it
+ * requires the prior written permission from Adobe.
+ */
+-->
+
+<!--@subject {{trans "More information about your withdrawal – Order number #%order_id" order_id=$order.increment_id}} @-->
+<!--@vars {
+"template config_path=\"design\/email\/header_template\"":"Email Header Template",
+"var customer_name":"Customer Name",
+"var order_increment_id":"Order Increment Id",
+"var order_date":"Order Date",
+"var support_mail":"Support Email",
+"var rma.increment_id":"Return Id",
+"layout handle=\"magento_rma_email_rma_items\" collection=$item_collection":"Return Items Collection",
+"var rma_data.status_label":"Return Status",
+"var formattedShippingAddress|raw":"Shipping Address",
+"var store.frontend_name":"Store Name",
+"var supportEmail": "Support Email",
+"var rma_id":"Rma Id",
+"var is_delivered": "Is Delivered",
+"var not_delivered": "Not Delivered"
+"var drop_url":"Drop URL",
+"template config_path=\"design\/email\/footer_template\"":"Email Footer Template"
+} @-->
+{{template config_path="design/email/header_template"}}
+<table>
+    <tr class="email-intro">
+        <td>
+            <p class="greeting">{{trans "Hello %customer_name," customer_name=$customer_name}}</p>
+        </td>
+    </tr>
+    <tr>
+        <td><br></td>
+    </tr>
+    <tr class="email-information">
+        <td class="email-information-content">
+            <p>
+                {{trans "As previously mentioned, we would now like to inform you of the next steps regarding your withdrawal of order #%order_id."
+                    order_id=$order_increment_id}}
+            </p>
+            <p>
+                {{trans "To enable us to finalise the processing of your withdrawal, we kindly ask you to return the goods to us in their original condition."}}
+            </p>
+            <p>
+                {{trans "Our customer service team or our courier will contact you shortly with further details regarding the collection of your return."}}
+            </p>
+            <p>
+                {{trans "Once we have received and checked your return, you will receive a separate email with all the details regarding your refund. You will usually receive a refund of your payment within 14 days of us receiving the return."}}
+            </p>
+            <h1>
+                {{trans
+                    "Your Return #%increment_id - %status_label"
+
+                    increment_id=$rma.increment_id
+                    status_label="$rma_data.status_label"
+                }}
+            </h1>
+            <p>{{trans "Placed on %created_at" created_at=$created_at_formatted_1}}</p>
+
+            <table class="order-details" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                    <td class="address-details">
+                        <h3>{{trans "Shipping Address"}}</h3>
+                        <p>{{var formattedShippingAddress|raw}}</p>
+                    </td>
+                    <td class="address-details">
+                        <h3>{{trans "Return Address"}}</h3>
+                        <p>{{var return_address|raw}}</p>
+                    </td>
+                </tr>
+            </table>
+            <br/>
+
+            {{layout handle="magento_rma_email_rma_items" rma_id=$rma_id}}
+
+            <br/>
+            <p>
+                {{trans "If you have any questions regarding your cancellation or return, we are always here to help."}}
+                {{trans "Click <a href="%link">here</a> to find out more or  email us at shop_de@casio.de. We’re happy to help!" link=$link |raw}}}
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <td><br></td>
+    </tr>
+    <tr class="email-intro-support">
+        <td>
+            <p>{{trans "Kind regards,"}}</p>
+            <p>{{trans "Your CASIO Online Shop Team"}}</p>
+        </td>
+    </tr>
+</table>
+{{template config_path="design/email/footer_template"}}

@@ -42,6 +42,12 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public const XML_PATH_PIANO_EMAIL_TEMPLATE = 'casio_withdrawal/piano_email/email_template';
     public const XML_PATH_PIANO_EMAIL_COPY_TO = 'casio_withdrawal/piano_email/send_email_copyto';
     public const XML_PATH_PIANO_EMAIL_COPY_METHOD = 'casio_withdrawal/piano_email/send_email_copy_method';
+    
+    public const XML_PATH_CONFIRMATION_PIANO_EMAIL_ENABLED = 'casio_withdrawal/piano_confirmation/enable';
+    public const XML_PATH_CONFIRMATION_PIANO_EMAIL_SENDER = 'casio_withdrawal/piano_confirmation/email_sender';
+    public const XML_PATH_CONFIRMATION_PIANO_EMAIL_TEMPLATE = 'casio_withdrawal/piano_confirmation/email_template';
+    public const XML_PATH_CONFIRMATION_PIANO_EMAIL_COPY_TO = 'casio_withdrawal/piano_confirmation/send_email_copyto';
+    public const XML_PATH_CONFIRMATION_PIANO_EMAIL_COPY_METHOD = 'casio_withdrawal/piano_confirmation/send_email_copy_method';
 
     public const XML_PATH_SUBMISSION_EMAIL_ENABLED = 'casio_withdrawal/submission_email/enable';
     public const XML_PATH_SUBMISSION_EMAIL_SENDER = 'casio_withdrawal/submission_email/email_sender';
@@ -54,6 +60,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public const XML_PATH_CONFIRMATION_EMAIL_TEMPLATE = 'casio_withdrawal/confirmation_email/email_template';
     public const XML_PATH_CONFIRMATION_EMAIL_COPY_TO = 'casio_withdrawal/confirmation_email/send_email_copyto';
     public const XML_PATH_CONFIRMATION_EMAIL_COPY_METHOD = 'casio_withdrawal/confirmation_email/send_email_copy_method';
+    
     
 
     public const XML_PATH_WITHDRAWAL_INTERVAL = 'casio_withdrawal/configuration/interval'; 
@@ -410,6 +417,21 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     {
         return $this->scopeConfig->isSetFlag(
             self::XML_PATH_PIANO_EMAIL_ENABLED,
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if order withdrawal submission email is enabled at the given store scope
+     *
+     * @param int|string|null $storeId
+     * @return bool
+     */
+    public function isPianoWithdrawalConfirmationEmailEnabled($storeId = null): bool
+    {
+        return $this->scopeConfig->isSetFlag(
+            self::XML_PATH_CONFIRMATION_PIANO_EMAIL_ENABLED,
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
             $storeId
         );
