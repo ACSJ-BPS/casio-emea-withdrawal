@@ -306,17 +306,32 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function canWithdrawOrder(Order $order): bool
     {
-        // if (!$this->isOrderFullyWithdrawn() && (int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) {
-        //     $order->setData(self::ORDER_FULLY_WITHDRAWN, self::ORDER_PARTIALLY_WITHDRAWN);
-        //     $order->save();
-        // }
         return ((!((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_FULLY_WITHDRAWN) 
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_AFTER_SHIPMENT_NOT_DELIVERED)
         && !((int)$order->getData(self::WITHDRAWAL_ORDER_KEY) === self::ORDER_WITHDRAWN_BEFORE_SHIPMENT)) || !$this->isOrderFullyWithdrawn($order))
         && $this->isWithinReturnWindow($order)
+        && !$this->checkIfPianoWasWithDrawn($order)
         && $order->getState() !== Order::STATE_CANCELED
         && $order->getState() !== Order::STATE_CLOSED;
+    }
+
+    /**
+     * Cgeck if Piano Order was withdrawn
+     *
+     * @param Order $order
+     * @return boolean
+     */
+    public function checkIfPianoWasWithDrawn(Order $order) :bool
+    {
+        $wasSubmitted = false;
+        foreach ($order->getStatusHistories() as $history) {
+            if ($history->getStatus() === self::PIANO_ORDER_STATUS) {
+                $wasSubmitted = true;
+                break;
+            }
+        }
+        return $wasSubmitted;
     }
 
     /**
