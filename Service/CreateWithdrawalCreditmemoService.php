@@ -179,7 +179,7 @@ class CreateWithdrawalCreditmemoService
                 $orderItem->setData(WithdrawalHelper::WITHDRAWAL_ITEM_REASON_OTHER, $withdrawalItemReasonOther);
                 $this->orderItemRepository->save($orderItem);
             }
-            $orderComment = 'This Order was partially withdrawn by the customer.';
+            $orderComment = 'Withdrawal request submitted by Customer.';
             $withdrawnStatus = $fullOrderWithdrawal ? WithdrawalHelper::ORDER_FULLY_WITHDRAWN : WithdrawalHelper::ORDER_PARTIALLY_WITHDRAWN;
         }
 
@@ -205,7 +205,9 @@ class CreateWithdrawalCreditmemoService
         $this->creditmemoService->refund($creditmemo, false);
         $this->creditmemoSender->send($creditmemo);
 
-        $order->setStatus($orderStatusTobeSet);
+        if ($fullOrderWithdrawal) {
+            $order->setStatus($orderStatusTobeSet);
+        }
         $order->setData('withdrawal_order_status', $withdrawnStatus);
         $order->addCommentToStatusHistory(
             $orderComment,
